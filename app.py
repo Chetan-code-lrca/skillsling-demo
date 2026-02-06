@@ -6,9 +6,7 @@ from datetime import datetime
 import threading
 import traceback
 
-# ────────────────────────────────────────────────
 # Page config + CSS
-# ────────────────────────────────────────────────
 st.set_page_config(page_title="SkillSling", page_icon="🧠", layout="wide")
 
 st.markdown("""
@@ -29,9 +27,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ────────────────────────────────────────────────
-# State & Lock
-# ────────────────────────────────────────────────
+# State initialization
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
@@ -40,9 +36,7 @@ if "logged_in" not in st.session_state:
 if "lock" not in st.session_state:
     st.session_state.lock = threading.Lock()
 
-# ────────────────────────────────────────────────
 # Login / Register
-# ────────────────────────────────────────────────
 if not st.session_state.logged_in:
     st.markdown("<h1 class='main-title'>SkillSling</h1>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>Your offline AI tutor — private & saved chats</p>", unsafe_allow_html=True)
@@ -80,13 +74,11 @@ if not st.session_state.logged_in:
                     st.error("Fill both fields")
     st.stop()
 
-# ────────────────────────────────────────────────
 # Main App
-# ────────────────────────────────────────────────
 st.markdown(f"<div class='greeting'><div class='avatar'>{st.session_state.username[0].upper()}</div><h1 class='main-title'>SkillSling – Hi, {st.session_state.username}!</h1></div>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Your personal offline tutor — chats saved just for you</p>", unsafe_allow_html=True)
 
-# Lock for safe state updates
+# Lock for thread safety
 lock = st.session_state.lock
 
 # Load user's chat history
@@ -107,7 +99,7 @@ with col_clear:
     if st.button("Clear History"):
         with lock:
             st.session_state[user_key] = []
-            st.session_state.current_messages = []
+            messages = []
         st.rerun()
 
 # Chat display
@@ -125,9 +117,7 @@ with chat_container:
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ────────────────────────────────────────────────
-# Async Ollama streaming function
-# ────────────────────────────────────────────────
+# Async Ollama streaming
 async def stream_ollama(messages_list):
     try:
         async with aiohttp.ClientSession() as session:
@@ -154,14 +144,12 @@ async def stream_ollama(messages_list):
     except Exception as e:
         yield f"[Error] {str(e)}"
 
-# ────────────────────────────────────────────────
 # User input + async streaming with lock
-# ────────────────────────────────────────────────
 if prompt := st.chat_input("Ask your doubt..."):
     with lock:
         messages.append({"role": "user", "content": prompt})
-        st.session_state[user_key] = messages.copy()  # safe copy
-    st.rerun()  # show user message immediately
+        st.session_state[user_key] = messages.copy()
+    st.rerun()  # Show user message immediately
 
     system_prompt = {
         "role": "system",
@@ -182,7 +170,7 @@ if prompt := st.chat_input("Ask your doubt..."):
                         placeholder.markdown(full_response + "▌")
                     placeholder.markdown(full_response)
 
-                asyncio.run(generate())
+                await asyncio.to_thread(generate)  # Run async in thread to avoid Streamlit blocking
 
                 with lock:
                     messages.append({"role": "assistant", "content": full_response})
@@ -191,4 +179,4 @@ if prompt := st.chat_input("Ask your doubt..."):
                 st.rerun()
 
             except Exception as e:
-                st.error(f"Error during streaming: {str(e)}\n{traceback.format_exc()}")
+                st.error(f"Streaming error: {str(e)}\n{traceback.format_exc()}")
