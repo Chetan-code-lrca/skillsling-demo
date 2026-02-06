@@ -1,4 +1,4 @@
-# SkillSling – Offline AI Tutor
+# SkillSling AI – Personalized Skilling Platform 
 
 An AI-powered tutor app for Rajasthan/Tier-2/3 students. Runs 100% locally/offline using Ollama + gemma3:4b + Streamlit.
 
