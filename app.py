@@ -1,9 +1,12 @@
 import streamlit as st
-from ollama import Client
+import asyncio
+import aiohttp
+import json
 from datetime import datetime
+import traceback
 
 # ────────────────────────────────────────────────
-# Page config + CSS
+# Page config + modern CSS
 # ────────────────────────────────────────────────
 st.set_page_config(page_title="SkillSling", page_icon="🧠", layout="wide")
 
@@ -26,13 +29,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ────────────────────────────────────────────────
-# Login / Register
+# Session state initialization (robust)
 # ────────────────────────────────────────────────
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = None
-    st.session_state.users = {"guest": "123"}
+defaults = {
+    "logged_in": False,
+    "username": None,
+    "users": {"guest": "123"},  # test user
+    "current_messages": [],     # active chat
+}
 
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
+
+# User-specific chat history key
+def get_user_chat_key():
+    return f"chat_{st.session_state.get('username', 'anonymous')}"
+
+# ────────────────────────────────────────────────
+# Login / Register Page
+# ────────────────────────────────────────────────
 if not st.session_state.logged_in:
     st.markdown("<h1 class='main-title'>SkillSling</h1>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>Your offline AI tutor — private & saved chats</p>", unsafe_allow_html=True)
@@ -52,7 +68,7 @@ if not st.session_state.logged_in:
                     st.session_state.username = username
                     st.rerun()
                 else:
-                    st.error("Invalid credentials")
+                    st.error("Invalid username or password")
 
         with tab2:
             new_user = st.text_input("New Username")
@@ -60,30 +76,23 @@ if not st.session_state.logged_in:
             if st.button("Register", use_container_width=True):
                 if new_user and new_pass:
                     if new_user in st.session_state.users:
-                        st.error("Username taken")
+                        st.error("Username already taken")
                     else:
                         st.session_state.users[new_user] = new_pass
                         st.session_state.logged_in = True
                         st.session_state.username = new_user
                         st.rerun()
                 else:
-                    st.error("Fill both fields")
+                    st.error("Please fill both fields")
     st.stop()
 
 # ────────────────────────────────────────────────
-# Main App
+# Main App (after login)
 # ────────────────────────────────────────────────
 st.markdown(f"<div class='greeting'><div class='avatar'>{st.session_state.username[0].upper()}</div><h1 class='main-title'>SkillSling – Hi, {st.session_state.username}!</h1></div>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Your personal offline tutor — chats saved just for you</p>", unsafe_allow_html=True)
 
-client = Client()
-
-user_key = f"chat_{st.session_state.username}"
-if user_key not in st.session_state:
-    st.session_state[user_key] = []
-
-messages = st.session_state[user_key]
-
+# Logout & Clear buttons
 col_logout, col_clear = st.columns([8, 2])
 with col_logout:
     if st.button("Logout"):
@@ -91,22 +100,53 @@ with col_logout:
         st.rerun()
 with col_clear:
     if st.button("Clear History"):
-        st.session_state[user_key] = []
-        messages = []
+        st.session_state[get_user_chat_key()] = []
+        st.session_state.current_messages = []
         st.rerun()
 
-# Saved chats list
-if messages:
-    st.subheader("Your Saved Chats")
-    for idx, msg in enumerate(messages):
-        if msg["role"] == "user":
-            preview = msg['content'][:50] + "..." if len(msg['content']) > 50 else msg['content']
-            st.markdown(f"**{preview}**")
-            if st.button("Load this chat", key=f"load_{idx}"):
-                st.session_state.messages = messages[:idx+1]
-                st.rerun()
+# Load user's saved chat history
+user_chat_key = get_user_chat_key()
+if user_chat_key not in st.session_state:
+    st.session_state[user_chat_key] = []
 
+# Active messages (current session)
+if "current_messages" not in st.session_state:
+    st.session_state.current_messages = st.session_state[user_chat_key].copy()
+
+messages = st.session_state.current_messages
+
+# ────────────────────────────────────────────────
+# Ollama async client
+# ────────────────────────────────────────────────
+async def stream_ollama_response(messages_list):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                'http://localhost:11434/api/chat',
+                json={
+                    "model": "gemma2:9b",
+                    "messages": messages_list,
+                    "stream": True,
+                    "options": {
+                        "temperature": 0.65,
+                        "top_p": 0.85,
+                        "repeat_penalty": 1.2
+                    }
+                }
+            ) as response:
+                async for line in response.content:
+                    if line:
+                        data = json.loads(line.decode('utf-8'))
+                        if 'message' in data and 'content' in data['message']:
+                            yield data['message']['content']
+                        if data.get('done', False):
+                            break
+    except Exception as e:
+        yield f"[Error] Ollama connection failed: {str(e)}"
+
+# ────────────────────────────────────────────────
 # Chat display
+# ────────────────────────────────────────────────
 chat_container = st.container()
 with chat_container:
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
@@ -121,7 +161,9 @@ with chat_container:
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Input
+# ────────────────────────────────────────────────
+# User input + async streaming
+# ────────────────────────────────────────────────
 if prompt := st.chat_input("Ask your doubt..."):
     messages.append({"role": "user", "content": prompt})
     with chat_container:
@@ -142,21 +184,20 @@ if prompt := st.chat_input("Ask your doubt..."):
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             full_response = ""
-            stream_response = client.chat(
-                model='gemma2:9b',
-                messages=full_messages,
-                stream=True,
-                options={"temperature": 0.65, "top_p": 0.85, "repeat_penalty": 1.2}
-            )
-
             placeholder = st.empty()
-            for chunk in stream_response:
-                content = chunk['message']['content']
-                full_response += content
-                placeholder.markdown(full_response + "▌")
 
-            placeholder.markdown(full_response)
+            try:
+                async def generate():
+                    async for token in stream_ollama_response(full_messages):
+                        full_response += token
+                        placeholder.markdown(full_response + "▌")
+                    placeholder.markdown(full_response)
 
-    messages.append({"role": "assistant", "content": full_response})
-    st.session_state[user_key] = messages
-    st.rerun()
+                asyncio.run(generate())
+
+                messages.append({"role": "assistant", "content": full_response})
+                st.session_state[user_chat_key] = messages.copy()
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Streaming error: {str(e)}\n{traceback.format_exc()}")
