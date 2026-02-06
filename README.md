@@ -17,4 +17,4 @@ An AI-powered tutor app for Rajasthan/Tier-2/3 students. Runs 100% locally/offli
 ## Demo Video
 [Add your video link here – upload to YouTube unlisted or Drive]
 
-Tech: Python, Streamlit, Ollama (local LLM), NVIDIA RTX 4050 GPU acceleration.
+Tech: Python, Streamlit, Ollama (local LLM).
