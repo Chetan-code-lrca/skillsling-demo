@@ -23,7 +23,7 @@ def get_ollama_client():
         client.chat(model='gemma3:4b', messages=[{"role": "user", "content": "hi"}])
         return client
     except Exception as e:
-        st.error("Ollama is not running or not reachable. Please start Ollama and load gemma3:4b first.")
+        st.error("Ollama is not running or not reachable. Please start Ollama and load gemma2:9b first.")
         st.stop()
 
 client = get_ollama_client()
@@ -81,7 +81,7 @@ Always end with one short check question like "అర్థమైందా?" or 
 
         try:
             stream_response = client.chat(
-    model='gemma3:4b',
+    model='gemma2:9b',  # instead of gemma3:4b
     messages=full_messages,
     stream=True,
     options={
@@ -106,3 +106,4 @@ Always end with one short check question like "అర్థమైందా?" or 
 
         except Exception as e:
             st.error(f"Error connecting to Ollama: {str(e)}\nMake sure Ollama is running and model is loaded.")
+
