@@ -6,12 +6,14 @@ from datetime import datetime
 import threading
 import traceback
 
-# Page config + CSS
+# ────────────────────────────────────────────────
+# Page config + modern CSS
+# ────────────────────────────────────────────────
 st.set_page_config(page_title="SkillSling", page_icon="🧠", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: #e0f7fa; }
+    .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: #e0f7fa; font-family: 'Segoe UI', sans-serif; }
     .main-title { font-size: 2.8rem; color: #4fc3f7; text-align: center; margin-bottom: 0.3rem; }
     .subtitle { text-align: center; color: #b3e5fc; margin-bottom: 1.5rem; }
     .greeting { display: flex; align-items: center; gap: 1rem; }
@@ -20,23 +22,27 @@ st.markdown("""
     .chat-message { max-width: 75%; padding: 1rem 1.2rem; border-radius: 18px; line-height: 1.5; font-size: 1.05rem; }
     .user-message { align-self: flex-end; background: #0288d1; color: white; border-bottom-right-radius: 4px; }
     .ai-message { align-self: flex-start; background: #455a64; color: #e0f7fa; border-bottom-left-radius: 4px; }
-    .timestamp { font-size: 0.75rem; color: #b0bec5; margin-top: 0.2rem; opacity: 0.8; }
+    .timestamp { font-size: 0.75rem; color: #b0bec5; margin-top: 0.2rem; opacity: 0.8; text-align: right; }
     .stChatInput > div > div > textarea { background: rgba(255,255,255,0.08); color: white; border: 1px solid #4fc3f7; border-radius: 12px; }
-    .stButton > button { background: #0288d1; color: white; border: none; border-radius: 10px; padding: 0.6rem 1.2rem; }
+    .stButton > button { background: #0288d1; color: white; border: none; border-radius: 10px; padding: 0.6rem 1.2rem; font-weight: bold; }
     .stButton > button:hover { background: #0277bd; }
     </style>
 """, unsafe_allow_html=True)
 
-# State initialization
+# ────────────────────────────────────────────────
+# State & Lock
+# ────────────────────────────────────────────────
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
-    st.session_state.users = {"guest": "123"}
+    st.session_state.users = {"guest": "123"}  # test user
 
 if "lock" not in st.session_state:
     st.session_state.lock = threading.Lock()
 
+# ────────────────────────────────────────────────
 # Login / Register
+# ────────────────────────────────────────────────
 if not st.session_state.logged_in:
     st.markdown("<h1 class='main-title'>SkillSling</h1>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>Your offline AI tutor — private & saved chats</p>", unsafe_allow_html=True)
@@ -74,11 +80,12 @@ if not st.session_state.logged_in:
                     st.error("Fill both fields")
     st.stop()
 
+# ────────────────────────────────────────────────
 # Main App
+# ────────────────────────────────────────────────
 st.markdown(f"<div class='greeting'><div class='avatar'>{st.session_state.username[0].upper()}</div><h1 class='main-title'>SkillSling – Hi, {st.session_state.username}!</h1></div>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Your personal offline tutor — chats saved just for you</p>", unsafe_allow_html=True)
 
-# Lock for thread safety
 lock = st.session_state.lock
 
 # Load user's chat history
@@ -117,7 +124,9 @@ with chat_container:
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Async Ollama streaming
+# ────────────────────────────────────────────────
+# Async Ollama streaming function
+# ────────────────────────────────────────────────
 async def stream_ollama(messages_list):
     try:
         async with aiohttp.ClientSession() as session:
@@ -144,7 +153,9 @@ async def stream_ollama(messages_list):
     except Exception as e:
         yield f"[Error] {str(e)}"
 
+# ────────────────────────────────────────────────
 # User input + async streaming with lock
+# ────────────────────────────────────────────────
 if prompt := st.chat_input("Ask your doubt..."):
     with lock:
         messages.append({"role": "user", "content": prompt})
@@ -164,13 +175,22 @@ if prompt := st.chat_input("Ask your doubt..."):
             placeholder = st.empty()
 
             try:
-                async def generate():
-                    async for token in stream_ollama(full_messages):
+                # Run async generator in thread-safe way
+                loop = asyncio.get_event_loop()
+                task = loop.create_task(stream_ollama(full_messages))
+
+                while not task.done():
+                    await asyncio.sleep(0.1)
+                    try:
+                        token = await asyncio.wait_for(task, timeout=0.1)
                         full_response += token
                         placeholder.markdown(full_response + "▌")
-                    placeholder.markdown(full_response)
+                    except asyncio.TimeoutError:
+                        continue
 
-                await asyncio.to_thread(generate)  # Run async in thread to avoid Streamlit blocking
+                # Get final result
+                await task  # ensure done
+                placeholder.markdown(full_response)
 
                 with lock:
                     messages.append({"role": "assistant", "content": full_response})
