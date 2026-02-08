@@ -1,20 +1,21 @@
-# SkillSling AI – Personalized Skilling Platform 
+# SkillSling AI – Personalized Offline AI Tutor
 
-An AI-powered tutor app for Rajasthan/Tier-2/3 students. Runs 100% locally/offline using Ollama + gemma3:4b + Streamlit.
+AI-powered tutor made for Rajasthan & Tier-2/3 students.  
+**100% local & offline** — no internet needed after setup.  
+Supports **Hindi + English** doubts with simple, friendly explanations.
 
-## How to Run Locally (Demo Instructions)
+Built for **AMD Slingshot 2026 – Education & Skilling theme**.
 
-1. Install Ollama: https://ollama.com/download
-2. Open Ollama app and run: `ollama run gemma3:4b` (or download model)
-3. Install Python dependencies: `pip install streamlit ollama`
-4. Clone repo: `git clone https://github.com/Chetan-code-lrca/skillsling-demo.git`
-5. Run: `cd skillsling-demo && streamlit run app.py`
+## Demo Features
+- Chat with AI tutor (Gemma 3B via Ollama)
+- Hindi & English support
+- Remembers conversation history in one session
+- Clean, mobile-friendly UI
 
-- Fully offline after model download.
-- Supports Hindi/English doubts, chat history, simple explanations.
-- Built for AMD Slingshot 2026 – Education & Skilling theme.
+## Tech Stack
+- Frontend & App: Streamlit
+- Local LLM: Ollama + gemma3:4b (lightweight & fast)
 
-## Demo Video
-[Add your video link here – upload to YouTube unlisted or Drive]
-
-Tech: Python, Streamlit, Ollama (local LLM).
+## Quick Setup (5–10 min)
+1. Install Ollama → https://ollama.com/download
+2. In terminal run:  
