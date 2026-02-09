@@ -1,21 +1,24 @@
-# SkillSling AI – Personalized Offline AI Tutor
+# SkillSling AI – India's #1 Offline AI Tutor
 
-AI-powered tutor made for Rajasthan & Tier-2/3 students.  
-**100% local & offline** — no internet needed after setup.  
-Supports **Hindi + English** doubts with simple, friendly explanations.
+100% local, no internet needed after setup.  
+Multi-language (Hindi, Telugu, English + more), PDF notes support, voice input.
 
-Built for **AMD Slingshot 2026 – Education & Skilling theme**.
+## Features
+- Chat in your preferred language
+- Subject selector (Maths, Science, etc.)
+- Upload PDF → ask questions from your notes/books
+- Voice recording (mic icon next to input)
+- Fast local model (llama3.2:3b)
 
-## Demo Features
-- Chat with AI tutor (Gemma 3B via Ollama)
-- Hindi & English support
-- Remembers conversation history in one session
-- Clean, mobile-friendly UI
+## Quick Setup
+1. Install Ollama → https://ollama.com
+2. `ollama pull llama3.2:3b`
+3. `ollama serve` (keep running)
+4. `pip install -r requirements.txt`
+5. `streamlit run app.py`
 
-## Tech Stack
-- Frontend & App: Streamlit
-- Local LLM: Ollama + gemma3:4b (lightweight & fast)
+## Demo Video
+[Watch 1-min demo here]  ← upload your screen recording to YouTube/unlisted & link
 
-## Quick Setup (5–10 min)
-1. Install Ollama → https://ollama.com/download
-2. In terminal run:  
+Built for AMD Slingshot 2026 – Education & Skilling theme  
+Made with ❤️ by Chetan Inaganti
