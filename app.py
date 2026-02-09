@@ -1,147 +1,146 @@
 import streamlit as st
-from ollama import Client
-import json
+import ollama
+import time
+import tempfile
+import os
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_ollama import OllamaEmbeddings
+from langchain_community.vectorstores import FAISS
 
-# ────────────────────────────────────────────────
-# Page config
-# ────────────────────────────────────────────────
-st.set_page_config(page_title="SkillSling", page_icon="🧠", layout="wide")
+# ==================== CONFIG ====================
+MODEL = "llama3.2:3b"  # Fast, good Hindi/English, low RAM
 
-# ────────────────────────────────────────────────
-# Local user management (stored in session_state + localStorage)
-# ────────────────────────────────────────────────
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = None
+BASE_SYSTEM_PROMPT = """
+You are SkillSling AI – friendly bhaiya/didi tutor for Class 8-12 students.
+Explain in simple {language} or {language}-English mix.
+Be encouraging: "शाबाश!", "Great job!", "Tu topper banega!"
+Keep answers short: 4-6 lines max + table if needed.
+Current subject: {subject}.
+Use PDF context if provided and relevant.
+"""
 
-# Load saved users from localStorage (simulated via session_state for simplicity)
-if "users" not in st.session_state:
-    st.session_state.users = {"guest": "123"}  # default test user
+st.set_page_config(page_title="SkillSling AI", page_icon="🚀", layout="wide")
 
-# ────────────────────────────────────────────────
-# Login Page
-# ────────────────────────────────────────────────
-if not st.session_state.logged_in:
-    st.title("SkillSling – Login")
-    st.markdown("Enter your username and password to save your chat history.")
+st.markdown("""
+    <style>
+    .stChatMessage {padding: 1rem; border-radius: 12px; margin: 0.5rem 0;}
+    .user {background-color: #e6f3ff;}
+    .assistant {background-color: #f0f2f6;}
+    </style>
+""", unsafe_allow_html=True)
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+st.title("🚀 SkillSling AI")
+st.caption(f"Offline Tutor | Model: {MODEL} | 100% Local")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Login", use_container_width=True):
-            if username in st.session_state.users and st.session_state.users[username] == password:
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.success(f"Welcome back, {username}!")
-                st.rerun()
-            else:
-                st.error("Wrong username or password. Try 'guest' / '123' (or register below).")
+# Session state
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "subject" not in st.session_state:
+    st.session_state.subject = "General"
+if "language" not in st.session_state:
+    st.session_state.language = "Hindi"
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
 
-    with col2:
-        if st.button("Register", use_container_width=True):
-            if username and password:
-                st.session_state.users[username] = password
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.success(f"Registered & logged in as {username}!")
-                st.rerun()
-            else:
-                st.error("Enter username and password to register.")
+# Sidebar
+with st.sidebar:
+    st.header("Controls")
+    st.info("Ollama must be running!")
 
-    st.stop()  # Stop here if not logged in
-
-# ────────────────────────────────────────────────
-# Logout button (top right)
-# ────────────────────────────────────────────────
-col1, col2 = st.columns([9, 1])
-with col2:
-    if st.button("Logout", key="logout"):
-        st.session_state.logged_in = False
-        st.session_state.username = None
+    language = st.selectbox("Language", ["Hindi", "English", "Hinglish", "Tamil", "Telugu"], index=0)
+    if language != st.session_state.language:
+        st.session_state.language = language
+        st.session_state.messages = []
         st.rerun()
 
-# ────────────────────────────────────────────────
-# Main App (after login)
-# ────────────────────────────────────────────────
-st.title(f"SkillSling – Your Offline AI Tutor ({st.session_state.username})")
-st.markdown("Ask doubts in Hindi or English. 100% local — chats saved for you! 🚀")
+    subject = st.selectbox("Subject", ["General", "Maths", "Science", "English"], index=0)
+    if subject != st.session_state.subject:
+        st.session_state.subject = subject
+        st.rerun()
 
-# Connect to Ollama
-@st.cache_resource
-def get_ollama_client():
-    try:
-        return Client()
-    except:
-        st.error("Ollama not running. Start Ollama and load gemma2:9b.")
-        st.stop()
+    use_pdf = st.checkbox("Use uploaded PDF for answers", value=True)
 
-client = get_ollama_client()
+    uploaded_file = st.file_uploader("Upload PDF Notes", type=["pdf"])
+    if uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_path = tmp_file.name
 
-# Load saved chat history for this user from localStorage (via session_state simulation)
-user_key = f"chat_{st.session_state.username}"
-if user_key not in st.session_state:
-    # Try to load from browser localStorage (Streamlit doesn't have direct access, so simulate)
-    st.session_state[user_key] = []
+        try:
+            loader = PyPDFLoader(tmp_path)
+            docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=150)
+            splits = text_splitter.split_documents(docs)
+            embeddings = OllamaEmbeddings(model=MODEL)
+            st.session_state.vector_store = FAISS.from_documents(splits, embeddings)
+            st.success("PDF processed successfully! Now ask questions.")
+        except Exception as e:
+            st.error(f"PDF processing failed: {str(e)}")
+        finally:
+            os.unlink(tmp_path)
 
-messages = st.session_state[user_key]
+    if st.button("Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
 
-# Clear chat button
-if st.button("Clear My Chat History", use_container_width=True):
-    st.session_state[user_key] = []
-    messages = []
-    st.rerun()
+    st.caption("Made by Chetan Inaganti – #1 in Slingshot 2026 Loading... ⭐")
+
+# System prompt
+system_content = BASE_SYSTEM_PROMPT.format(language=st.session_state.language, subject=st.session_state.subject)
+if not st.session_state.messages or st.session_state.messages[0]["role"] != "system":
+    st.session_state.messages.insert(0, {"role": "system", "content": system_content})
 
 # Display chat history
-for message in messages:
-    avatar = "🧑‍🎓" if message["role"] == "user" else "🧠"
-    with st.chat_message(message["role"], avatar=avatar):
+for message in st.session_state.messages[1:]:
+    with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# User input
-if prompt := st.chat_input("Type your doubt..."):
-    messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user", avatar="🧑‍🎓"):
+# Input area
+prompt = st.chat_input(f"Doubt poocho... ({st.session_state.language})")
+
+if prompt:
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Strong system prompt
-    system_prompt = {
-        "role": "system",
-        "content": """You are a patient teacher for Indian students.
-Reply ONLY in the user's language (Telugu, Hindi or English).
-Keep answers SHORT (80–150 words), accurate, structured.
-Use bullet points for lists/formulas.
-NEVER repeat anything.
-Use simple words.
-End with one quick check question like "అర్థమైందా?" or "Samajh aaya?"."""
-    }
-
-    full_messages = [system_prompt] + messages
-
-    with st.chat_message("assistant", avatar="🧠"):
-        message_placeholder = st.empty()
+    with st.chat_message("assistant"):
+        placeholder = st.empty()
         full_response = ""
+        with st.spinner("Thinking... (usually 5-20 seconds)"):
+            try:
+                if st.session_state.vector_store and use_pdf:
+                    # Lightweight RAG
+                    retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 2})
+                    relevant_docs = retriever.invoke(prompt)
+                    context = "\n\n".join([doc.page_content for doc in relevant_docs])[:3000]
 
-        stream_response = client.chat(
-            model='gemma2:9b',  # or 'llama3.1:8b' if you pulled it
-            messages=full_messages,
-            stream=True,
-            options={
-                "temperature": 0.65,
-                "top_p": 0.85,
-                "repeat_penalty": 1.2
-            }
-        )
+                    full_prompt = f"""Context from PDF (use only if relevant):  
+{context}
 
-        for chunk in stream_response:
-            if 'message' in chunk and 'content' in chunk['message']:
-                content = chunk['message']['content']
-                full_response += content
-                message_placeholder.markdown(full_response + "▌")
+Question: {prompt}
+Answer in simple {st.session_state.language}, encouraging way:"""
 
-        message_placeholder.markdown(full_response)
+                    response = ollama.generate(model=MODEL, prompt=full_prompt, stream=True)
+                    for chunk in response:
+                        if 'response' in chunk:
+                            full_response += chunk['response']
+                            placeholder.markdown(full_response + "▌")
+                    placeholder.markdown(full_response)
+                else:
+                    # Normal fast chat
+                    stream = ollama.chat(model=MODEL, messages=st.session_state.messages, stream=True)
+                    for chunk in stream:
+                        if 'message' in chunk and 'content' in chunk['message']:
+                            full_response += chunk['message']['content']
+                            placeholder.markdown(full_response + "▌")
+                    placeholder.markdown(full_response)
 
-    # Save new message to user's history
-    messages.append({"role": "assistant", "content": full_response})
-    st.session_state[user_key] = messages  # persist in session
+            except Exception as e:
+                st.error(f"Response error: {str(e)}\n1. Is 'ollama serve' running?\n2. Model pulled? Try simple question without PDF.")
+                full_response = "Sorry yaar, kuch gadbad ho gayi. Try again or without PDF."
+
+    if full_response:
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+st.caption("Pro Tip: Small PDFs = faster answers | Try without PDF first if slow")
