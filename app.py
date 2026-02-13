@@ -25,9 +25,9 @@ LANG_FORCE_PROMPT = {
 }
 
 MODEL_OPTS = {
-    "llama3.2:3b": {"temperature": 0.5, "num_predict": 200},
-    "gemma2:2b": {"temperature": 0.5, "num_predict": 150},
-    "phi3:mini": {"temperature": 0.5, "num_predict": 150}
+    "llama3.2:3b": {"temperature": 0.5, "num_predict": 500},
+    "gemma2:2b": {"temperature": 0.5, "num_predict": 400},
+    "phi3:mini": {"temperature": 0.5, "num_predict": 400}
 }
 
 SYSTEM_PROMPT = """You are SkillSling AI – friendly tutor for Class 8-12 students.
