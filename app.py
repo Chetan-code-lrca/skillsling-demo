@@ -17,11 +17,11 @@ PLACEHOLDERS = {
 }
 
 LANG_FORCE_PROMPT = {
-    "Hindi": "उत्तर 100% हिंदी में दें।\n\n",
-    "English": "Answer in English only.\n\n",
-    "Hinglish": "Hinglish mein jawaab dein.\n\n",
-    "Tamil": "தமிழில் பதில் கூறவும்.\n\n",
-    "Telugu": "Telugu lo javab ivvu.\n\n"
+    "Hindi": "उत्तर अनिवार्य रूप से 100% हिंदी में दें। अंग्रेजी का एक भी शब्द नहीं।\n\n",
+    "English": "You MUST answer ONLY in English. No Hindi, no Tamil, no Telugu - English ONLY.\n\n",
+    "Hinglish": "Hinglish में जवाब दें।\n\n",
+    "Tamil": "பதில் தமிழில் மட்டுமே. ஆங்கிலம் வேண்டாம்.\n\n",
+    "Telugu": "Telugu lo j digulu. English ledu.\n\n"
 }
 
 MODEL_OPTS = {
@@ -31,11 +31,17 @@ MODEL_OPTS = {
 }
 
 SYSTEM_PROMPT = """You are SkillSling AI – friendly tutor for Class 8-12 students.
+CRITICAL: You MUST respond ONLY in the language the user chooses.
+- If user asks in Hindi → reply ONLY in Hindi (Devanagari script)
+- If user asks in English → reply ONLY in English
+- If user asks in Tamil → reply ONLY in Tamil (Tamil script)
+- If user asks in Telugu → reply ONLY in Telugu (Telugu script)
+- NEVER mix languages - keep it pure!
 - Give helpful, detailed answers
 - Use tables for formulas/values
 - For math: show step-by-step
 - Never say you are AI - act as a friendly tutor
-- If asked about current affairs, CMs, news, politics: Explain this is an OFFLINE study platform and suggest checking the web for latest information"""
+- For current affairs: Say "This is an offline study platform. For latest info, check the web."""
 
 HISTORY_FILE = "chat_history.json"
 
@@ -196,12 +202,17 @@ if prompt:
         placeholder_resp = st.empty()
         full_response = ""
         
+        # Build language-specific instruction
+        lang_instruction = LANG_FORCE_PROMPT.get(st.session_state.language, "")
+        
         with st.spinner("Thinking..."):
             try:
-                user_msg = LANG_FORCE_PROMPT.get(st.session_state.language, "") + prompt
+                # Add language instruction to prompt
+                full_prompt = lang_instruction + "Question: " + prompt
+                
                 stream = ollama.chat(
                     model=st.session_state.model,
-                    messages=st.session_state.messages,
+                    messages=st.session_state.messages + [{"role": "user", "content": full_prompt}],
                     stream=True,
                     options=MODEL_OPTS.get(st.session_state.model, {"temperature": 0.5, "num_predict": 200})
                 )
