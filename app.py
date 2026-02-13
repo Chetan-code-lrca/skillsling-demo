@@ -13,35 +13,49 @@ PLACEHOLDERS = {
     "English": "Ask your doubt... (English)",
     "Hinglish": "Doubt poocho yaar... (Hinglish)",
     "Tamil": "கேள்வி கேளுங்கள்... (Tamil)",
-    "Telugu": "డाउट पूछो... (Telugu)"
+    "Telugu": "డౌట్‌కు ఏదైనా అడుగు... (Telugu)"
 }
 
-LANG_FORCE_PROMPT = {
-    "Hindi": "उत्तर अनिवार्य रूप से 100% हिंदी में दें। अंग्रेजी का एक भी शब्द नहीं।\n\n",
-    "English": "You MUST answer ONLY in English. No Hindi, no Tamil, no Telugu - English ONLY.\n\n",
-    "Hinglish": "Hinglish में जवाब दें।\n\n",
-    "Tamil": "பதில் தமிழில் மட்டுமே. ஆங்கிலம் வேண்டாம்.\n\n",
-    "Telugu": "Telugu lo j digulu. English ledu.\n\n"
+LANG_SYSTEM_PROMPT = {
+    "Hindi": """You are SkillSling AI – friendly tutor for Class 8-12 students.
+जब भी प्रश्न हिंदी में पूछा जाए तो उत्तर 100% हिंदी (देवनागरी लिपि) में दें।
+- सरल और स्पष्ट उत्तर दें
+- सारणी (table) का उपयोग करें जब आवश्यक हो
+- गणित के प्रश्नों में चरण दिखाएं
+- प्रोत्साहित करने वाले शब्द प्रयोग करें""",
+    
+    "English": """You are SkillSling AI – friendly tutor for Class 8-12 students.
+Always respond ONLY in English.
+- Give simple and clear answers
+- Use tables when needed
+- Show steps for math problems
+- Be encouraging""",
+    
+    "Hinglish": """You are SkillSling AI – friendly tutor for Class 8-12 students.
+Hinglish mein jawaab dein - Hindi + English mix.
+- Simple answers dein
+- Tables use karin
+- Math mein steps dikhayen""",
+    
+    "Tamil": """You are SkillSling AI – friendly tutor for Class 8-12 students.
+தமிழில் மட்டுமே பதில் கூறவும் - Tamil script only.
+- எளிதான பதில் கூறவும்
+- அட்டவணை பயன்படுத்தவும்
+- கணிதத்தில் படிகள் காட்டவும்""",
+    
+    "Telugu": """You are SkillSling AI – friendly tutor for Class 8-12 students.
+Telugu lo em chestunnavo ani reply ivvu - Telugu script only, no English.
+- Simple ga ela jawab ivvu
+- Tables use chesukovachu
+- Maths lo steps peduthu
+- E勉勵する (encourage) words use chesuko"""
 }
 
 MODEL_OPTS = {
-    "llama3.2:3b": {"temperature": 0.5, "num_predict": 500},
-    "gemma2:2b": {"temperature": 0.5, "num_predict": 400},
-    "phi3:mini": {"temperature": 0.5, "num_predict": 400}
+    "llama3.2:3b": {"temperature": 0.7, "num_predict": 1024},
+    "gemma2:2b": {"temperature": 0.7, "num_predict": 800},
+    "phi3:mini": {"temperature": 0.7, "num_predict": 800}
 }
-
-SYSTEM_PROMPT = """You are SkillSling AI – friendly tutor for Class 8-12 students.
-CRITICAL: You MUST respond ONLY in the language the user chooses.
-- If user asks in Hindi → reply ONLY in Hindi (Devanagari script)
-- If user asks in English → reply ONLY in English
-- If user asks in Tamil → reply ONLY in Tamil (Tamil script)
-- If user asks in Telugu → reply ONLY in Telugu (Telugu script)
-- NEVER mix languages - keep it pure!
-- Give helpful, detailed answers
-- Use tables for formulas/values
-- For math: show step-by-step
-- Never say you are AI - act as a friendly tutor
-- For current affairs: Say "This is an offline study platform. For latest info, check the web."""
 
 HISTORY_FILE = "chat_history.json"
 
@@ -58,11 +72,11 @@ st.markdown("""
 
 st.title("🚀 SkillSling AI")
 st.markdown("🏆 **AMD Slingshot 2026** | 📚 **100% Offline AI Study Tutor**")
-st.info("💡 **Tip:** This is an OFFLINE platform for study. For current affairs, news, or latest information, please check the web.")
+st.info("💡 For current affairs/latest news - please check the web. This is an offline study platform.")
 
 # ==================== SESSION STATE ====================
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    st.session_state.messages = []
 if "language" not in st.session_state:
     st.session_state.language = "Hindi"
 if "model" not in st.session_state:
@@ -77,18 +91,11 @@ def load_history():
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                for chat in data:
-                    if chat.get("id") is None:
-                        chat["id"] = f"chat_{time.time()}_{id(chat)}"
-                return data
+                return json.load(f)
         except: return []
     return []
 
 def save_history(history):
-    for chat in history:
-        if chat.get("id") is None:
-            chat["id"] = f"chat_{time.time()}"
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, indent=2)
 
@@ -101,67 +108,46 @@ with st.sidebar:
     st.header("💬 Chat History")
     
     if st.button("✨ New Chat", use_container_width=True):
-        if len(st.session_state.messages) > 1:
+        if len(st.session_state.messages) > 0:
             chat_entry = {
                 "id": st.session_state.current_chat_id,
                 "language": st.session_state.language,
                 "model": st.session_state.model,
-                "messages": st.session_state.messages[1:],
+                "messages": st.session_state.messages,
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "preview": st.session_state.messages[1]["content"][:40] if len(st.session_state.messages) > 1 else "Chat"
+                "preview": st.session_state.messages[0]["content"][:40] if st.session_state.messages else "New Chat"
             }
-            existing_idx = next((i for i, c in enumerate(st.session_state.past_chats) if c.get("id") == st.session_state.current_chat_id), None)
-            if existing_idx is not None:
-                st.session_state.past_chats[existing_idx] = chat_entry
-            else:
-                st.session_state.past_chats.append(chat_entry)
+            st.session_state.past_chats.append(chat_entry)
             save_history(st.session_state.past_chats)
         
         st.session_state.current_chat_id = f"chat_{int(time.time())}"
-        st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        st.session_state.messages = []
         st.rerun()
     
     st.markdown("---")
     st.markdown("**Previous Chats:**")
     
     if st.session_state.past_chats:
-        for idx, chat in enumerate(reversed(st.session_state.past_chats[-15:])):
+        for idx, chat in enumerate(reversed(st.session_state.past_chats[-10:])):
             real_idx = len(st.session_state.past_chats) - 1 - idx
-            chat_id = chat.get("id") or f"chat_{real_idx}"
-            chat_lang = (chat.get("language") or "Hindi")[:3]
-            preview = (chat.get("preview") or "Chat")[:20]
+            chat_lang = chat.get("language", "Hindi")[:3]
+            preview = (chat.get("preview") or "Chat")[:25]
             
             col1, col2 = st.columns([4, 1])
             with col1:
-                if st.button(f"💬 {preview}... ({chat_lang})", key=f"btn_{chat_id}_{real_idx}"):
-                    if len(st.session_state.messages) > 1:
-                        current_entry = {
-                            "id": st.session_state.current_chat_id,
-                            "language": st.session_state.language,
-                            "model": st.session_state.model,
-                            "messages": st.session_state.messages[1:],
-                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            "preview": st.session_state.messages[1]["content"][:40]
-                        }
-                        existing = next((i for i, c in enumerate(st.session_state.past_chats) if c.get("id") == st.session_state.current_chat_id), None)
-                        if existing is not None:
-                            st.session_state.past_chats[existing] = current_entry
-                        else:
-                            st.session_state.past_chats.append(current_entry)
-                        save_history(st.session_state.past_chats)
-                    
-                    st.session_state.current_chat_id = chat_id
-                    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}] + chat.get("messages", [])
+                if st.button(f"💬 {preview}", key=f"btn_{chat.get('id', real_idx)}"):
+                    st.session_state.current_chat_id = chat.get("id", "")
+                    st.session_state.messages = chat.get("messages", [])
                     st.session_state.language = chat.get("language", "Hindi")
                     st.session_state.model = chat.get("model", "llama3.2:3b")
                     st.rerun()
             with col2:
-                if st.button("🗑️", key=f"del_{chat_id}_{real_idx}"):
+                if st.button("🗑️", key=f"del_{chat.get('id', real_idx)}"):
                     st.session_state.past_chats.pop(real_idx)
                     save_history(st.session_state.past_chats)
                     st.rerun()
     else:
-        st.caption("No past chats yet")
+        st.caption("No past chats")
     
     st.markdown("---")
     st.caption("🏆 AMD Slingshot 2026\n📚 SkillSling Team")
@@ -175,17 +161,16 @@ with col1:
     new_lang = st.selectbox("🌐 Language", lang_options, index=lang_idx)
     if new_lang != st.session_state.language:
         st.session_state.language = new_lang
-        st.session_state.messages[0]["content"] = SYSTEM_PROMPT
+        st.session_state.messages = []
 
 with col2:
     model_idx = AVAILABLE_MODELS.index(st.session_state.model) if st.session_state.model in AVAILABLE_MODELS else 0
     new_model = st.selectbox("🤖 Model", AVAILABLE_MODELS, index=model_idx)
     if new_model != st.session_state.model:
         st.session_state.model = new_model
-        st.session_state.messages[0]["content"] = SYSTEM_PROMPT
 
 # ==================== CHAT DISPLAY ====================
-for msg in st.session_state.messages[1:]:
+for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
@@ -194,58 +179,47 @@ placeholder = PLACEHOLDERS.get(st.session_state.language, "Ask your doubt...")
 prompt = st.chat_input(placeholder)
 
 if prompt:
+    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
+    
     with st.chat_message("user"):
         st.markdown(prompt)
+    
+    # Get system prompt for selected language
+    system_prompt = LANG_SYSTEM_PROMPT.get(st.session_state.language, LANG_SYSTEM_PROMPT["English"])
+    
+    # Build messages
+    messages = [{"role": "system", "content": system_prompt}]
+    for msg in st.session_state.messages:
+        messages.append(msg)
     
     with st.chat_message("assistant"):
         placeholder_resp = st.empty()
         full_response = ""
         
-        # Build language-specific instruction
-        lang_instruction = LANG_FORCE_PROMPT.get(st.session_state.language, "")
-        
         with st.spinner("Thinking..."):
             try:
-                # Add language instruction to prompt
-                full_prompt = lang_instruction + "Question: " + prompt
-                
                 stream = ollama.chat(
                     model=st.session_state.model,
-                    messages=st.session_state.messages + [{"role": "user", "content": full_prompt}],
+                    messages=messages,
                     stream=True,
-                    options=MODEL_OPTS.get(st.session_state.model, {"temperature": 0.5, "num_predict": 200})
+                    options=MODEL_OPTS.get(st.session_state.model, {"temperature": 0.7, "num_predict": 1024})
                 )
                 
                 for chunk in stream:
                     if 'message' in chunk and 'content' in chunk['message']:
                         full_response += chunk['message']['content']
                         placeholder_resp.markdown(full_response + "▌")
-                        time.sleep(0.015)
+                        time.sleep(0.02)
+                
                 placeholder_resp.markdown(full_response)
                 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-                full_response = "Error! Is Ollama running?"
+                full_response = "Error! Please check if Ollama is running."
                 placeholder_resp.markdown(full_response)
         
         st.session_state.messages.append({"role": "assistant", "content": full_response})
-        
-        # Save
-        chat_entry = {
-            "id": st.session_state.current_chat_id,
-            "language": st.session_state.language,
-            "model": st.session_state.model,
-            "messages": st.session_state.messages[1:],
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "preview": prompt[:40]
-        }
-        existing_idx = next((i for i, c in enumerate(st.session_state.past_chats) if c.get("id") == st.session_state.current_chat_id), None)
-        if existing_idx is not None:
-            st.session_state.past_chats[existing_idx] = chat_entry
-        else:
-            st.session_state.past_chats.append(chat_entry)
-        save_history(st.session_state.past_chats)
 
 st.markdown("---")
-st.caption("💡 100% Offline Platform | Past chats auto-saved in sidebar | For latest info, check the web")
+st.caption("💡 Past chats saved in sidebar | 100% Offline Platform")
