@@ -1,0 +1,5 @@
+# Ignore temporary files
+chat_history.json
+__pycache__/
+*.pyc
+.DS_Store
