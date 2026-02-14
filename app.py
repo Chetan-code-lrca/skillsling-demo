@@ -219,37 +219,43 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
             else:
                 # Gemini Fallback Logic
                 if not GEMINI_API_KEY:
-                    st.error("No API Key found for Cloud Mode. Please set GOOGLE_API_KEY in secrets.")
+                    st.error("🔑 **Google API Key Missing:** Go to Streamlit Settings > Secrets and add `GOOGLE_API_KEY = 'your_key_here'`")
                     st.stop()
                 
-                # Try multiple models in order of preference
-                gemini_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro", "gemini-1.0-pro"]
+                gemini_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
                 response_stream = None
+                last_error = ""
                 
                 for model_name in gemini_models:
                     try:
                         model = genai.GenerativeModel(model_name)
-                        # specialized chat history handling
+                        # Simplified history: just the last few messages to ensure stability
                         history = []
-                        for m in messages[:-1]:
-                            role = "user" if m["role"] in ["user", "system"] else "model"
-                            # System prompts are not directly supported in history, so we prepend to first user msg or ignore
-                            if m["role"] == "system": continue 
+                        # Filter for alternating roles (Gemini requirement)
+                        for m in messages[-5:-1]: # Last 4 messages
+                            if m["role"] == "system": continue
+                            role = "user" if m["role"] == "user" else "model"
                             history.append({"role": role, "parts": [m["content"]]})
                         
                         chat = model.start_chat(history=history)
                         response_stream = chat.send_message(messages[-1]["content"], stream=True)
-                        break # If successful, stop trying other models
+                        break 
                     except Exception as e:
-                        continue # Try next model
+                        last_error = str(e)
+                        continue 
                 
                 if response_stream:
-                    for chunk in response_stream:
-                        if chunk.text:
-                            full_res += chunk.text
-                            p_hold.markdown(full_res + "▌")
+                    try:
+                        for chunk in response_stream:
+                            if chunk.text:
+                                full_res += chunk.text
+                                p_hold.markdown(full_res + "▌")
+                    except Exception as e:
+                        st.error(f"Streaming Error: {str(e)}")
+                        st.stop()
                 else:
-                    st.error("Cloud AI service is currently unavailable. Please try again later.")
+                    st.error(f"❌ **Cloud AI Error:** {last_error}")
+                    st.info("Tip: Check if your API Key is valid at aistudio.google.com")
                     st.stop()
 
             duration = round(time.time() - start_t, 2)
