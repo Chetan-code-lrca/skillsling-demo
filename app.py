@@ -4,12 +4,29 @@ import time
 import json
 import os
 import io
+import google.generativeai as genai
 from current_facts import get_current_facts
 from datetime import datetime
 from pypdf import PdfReader
 
 # ==================== CONFIG ====================
 AVAILABLE_MODELS = ["llama3.2:3b", "gemma2:2b", "phi3:mini"]
+
+# Gemini Fallback Setup
+GEMINI_API_KEY = st.secrets.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+def is_ollama_running():
+    try:
+        ollama.list()
+        return True
+    except:
+        return False
+
+OLLAMA_ACTIVE = is_ollama_running()
+MODE_COLOR = "#00ff00" if OLLAMA_ACTIVE else "#ffcc00"
+MODE_TEXT = "⚡ AMD LOCAL MODE" if OLLAMA_ACTIVE else "🌐 CLOUD MODE"
 
 PLACEHOLDERS = {
     "Hindi": "Doubt poocho...",
@@ -121,8 +138,11 @@ def save_history(history):
 
 # ==================== SIDEBAR ====================
 with st.sidebar:
-    st.markdown("<h2 style='color: #ed1c24 !important; text-align: center;'>SKILLSLING</h2>", unsafe_allow_html=True)
-    st.markdown("<div class='perf-badge'>⚡ AMD LOCAL INFERENCE</div>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='color: #ed1c24 !important; text-align: center;'>SKILLSLING</h2>", unsafe_allow_html=True)
+    st.markdown(f"<div class='perf-badge' style='border-color: {MODE_COLOR}; color: {MODE_COLOR};'>{MODE_TEXT}</div>", unsafe_allow_html=True)
+    
+    if not OLLAMA_ACTIVE:
+        st.warning("Ollama not detected. Falling back to Cloud AI for demo.")
     
     if st.button("➕ New Session", use_container_width=True):
         st.session_state.messages = []
@@ -185,20 +205,39 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
     if fact: messages.append({"role": "system", "content": f"FACT: {fact}"})
     for m in st.session_state.messages: messages.append(m)
 
-    with st.chat_message("assistant"):
-        p_hold = st.empty()
-        full_res = ""
-        start_t = time.time()
-        try:
-            stream = ollama.chat(model=st.session_state.model, messages=messages, stream=True, options=MODEL_OPTS)
-            for chunk in stream:
-                if 'message' in chunk:
-                    full_res += chunk['message']['content']
-                    p_hold.markdown(full_res + "▌")
-            duration = round(time.time() - start_t, 2)
-            p_hold.markdown(full_res)
-            st.session_state.messages.append({"role": "assistant", "content": full_res, "perf": duration})
-            
+        with st.chat_message("assistant"):
+            p_hold = st.empty()
+            full_res = ""
+            start_t = time.time()
+            try:
+                if OLLAMA_ACTIVE:
+                    stream = ollama.chat(model=st.session_state.model, messages=messages, stream=True, options=MODEL_OPTS)
+                    for chunk in stream:
+                        if 'message' in chunk:
+                            full_res += chunk['message']['content']
+                            p_hold.markdown(full_res + "▌")
+                else:
+                    # Gemini Fallback Logic
+                    if not GEMINI_API_KEY:
+                        st.error("No API Key found for Cloud Mode. Please set GOOGLE_API_KEY in secrets.")
+                        st.stop()
+                    
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # Convert messages to Gemini format
+                    history = []
+                    for m in messages[:-1]:
+                        role = "user" if m["role"] in ["user", "system"] else "model"
+                        history.append({"role": role, "parts": [m["content"]]})
+                    
+                    chat = model.start_chat(history=history)
+                    response = chat.send_message(messages[-1]["content"], stream=True)
+                    for chunk in response:
+                        full_res += chunk.text
+                        p_hold.markdown(full_res + "▌")
+    
+                duration = round(time.time() - start_t, 2)
+                p_hold.markdown(full_res)
+                st.session_state.messages.append({"role": "assistant", "content": full_res, "perf": duration})            
             chat_entry = {"id": st.session_state.current_chat_id, "messages": st.session_state.messages, "preview": st.session_state.messages[0]["content"][:40]}
             if not any(c.get("id") == chat_entry["id"] for c in st.session_state.past_chats):
                 st.session_state.past_chats.append(chat_entry)
