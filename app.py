@@ -301,7 +301,7 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
                     st.stop()
                 
                 # Use Gemini's chat interface for better stability
-                test_models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"]
+                test_models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"]
                 success = False
                 last_err = ""
 
