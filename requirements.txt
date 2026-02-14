@@ -1,3 +1,2 @@
-Automation and AI agent 
-HLOOKUP
-Length and Count 
+﻿streamlit
+ollama
