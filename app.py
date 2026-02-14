@@ -222,28 +222,35 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
                     st.error("No API Key found for Cloud Mode. Please set GOOGLE_API_KEY in secrets.")
                     st.stop()
                 
-                try:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    # Convert messages to Gemini format
-                    history = []
-                    for m in messages[:-1]:
-                        role = "user" if m["role"] in ["user", "system"] else "model"
-                        history.append({"role": role, "parts": [m["content"]]})
-                    
-                    chat = model.start_chat(history=history)
-                    response = chat.send_message(messages[-1]["content"], stream=True)
-                    for chunk in response:
+                # Try multiple models in order of preference
+                gemini_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro", "gemini-1.0-pro"]
+                response_stream = None
+                
+                for model_name in gemini_models:
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        # specialized chat history handling
+                        history = []
+                        for m in messages[:-1]:
+                            role = "user" if m["role"] in ["user", "system"] else "model"
+                            # System prompts are not directly supported in history, so we prepend to first user msg or ignore
+                            if m["role"] == "system": continue 
+                            history.append({"role": role, "parts": [m["content"]]})
+                        
+                        chat = model.start_chat(history=history)
+                        response_stream = chat.send_message(messages[-1]["content"], stream=True)
+                        break # If successful, stop trying other models
+                    except Exception as e:
+                        continue # Try next model
+                
+                if response_stream:
+                    for chunk in response_stream:
                         if chunk.text:
                             full_res += chunk.text
                             p_hold.markdown(full_res + "▌")
-                except Exception as gen_err:
-                    # Fallback to gemini-pro if flash fails
-                    model = genai.GenerativeModel('gemini-pro')
-                    response = model.generate_content(messages[-1]["content"], stream=True)
-                    for chunk in response:
-                        if chunk.text:
-                            full_res += chunk.text
-                            p_hold.markdown(full_res + "▌")
+                else:
+                    st.error("Cloud AI service is currently unavailable. Please try again later.")
+                    st.stop()
 
             duration = round(time.time() - start_t, 2)
             p_hold.markdown(full_res)
