@@ -205,39 +205,40 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
     if fact: messages.append({"role": "system", "content": f"FACT: {fact}"})
     for m in st.session_state.messages: messages.append(m)
 
-        with st.chat_message("assistant"):
-            p_hold = st.empty()
-            full_res = ""
-            start_t = time.time()
-            try:
-                if OLLAMA_ACTIVE:
-                    stream = ollama.chat(model=st.session_state.model, messages=messages, stream=True, options=MODEL_OPTS)
-                    for chunk in stream:
-                        if 'message' in chunk:
-                            full_res += chunk['message']['content']
-                            p_hold.markdown(full_res + "▌")
-                else:
-                    # Gemini Fallback Logic
-                    if not GEMINI_API_KEY:
-                        st.error("No API Key found for Cloud Mode. Please set GOOGLE_API_KEY in secrets.")
-                        st.stop()
-                    
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    # Convert messages to Gemini format
-                    history = []
-                    for m in messages[:-1]:
-                        role = "user" if m["role"] in ["user", "system"] else "model"
-                        history.append({"role": role, "parts": [m["content"]]})
-                    
-                    chat = model.start_chat(history=history)
-                    response = chat.send_message(messages[-1]["content"], stream=True)
-                    for chunk in response:
-                        full_res += chunk.text
+    with st.chat_message("assistant"):
+        p_hold = st.empty()
+        full_res = ""
+        start_t = time.time()
+        try:
+            if OLLAMA_ACTIVE:
+                stream = ollama.chat(model=st.session_state.model, messages=messages, stream=True, options=MODEL_OPTS)
+                for chunk in stream:
+                    if 'message' in chunk:
+                        full_res += chunk['message']['content']
                         p_hold.markdown(full_res + "▌")
-    
-                duration = round(time.time() - start_t, 2)
-                p_hold.markdown(full_res)
-                st.session_state.messages.append({"role": "assistant", "content": full_res, "perf": duration})            
+            else:
+                # Gemini Fallback Logic
+                if not GEMINI_API_KEY:
+                    st.error("No API Key found for Cloud Mode. Please set GOOGLE_API_KEY in secrets.")
+                    st.stop()
+                
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                # Convert messages to Gemini format
+                history = []
+                for m in messages[:-1]:
+                    role = "user" if m["role"] in ["user", "system"] else "model"
+                    history.append({"role": role, "parts": [m["content"]]})
+                
+                chat = model.start_chat(history=history)
+                response = chat.send_message(messages[-1]["content"], stream=True)
+                for chunk in response:
+                    full_res += chunk.text
+                    p_hold.markdown(full_res + "▌")
+
+            duration = round(time.time() - start_t, 2)
+            p_hold.markdown(full_res)
+            st.session_state.messages.append({"role": "assistant", "content": full_res, "perf": duration})
+            
             chat_entry = {"id": st.session_state.current_chat_id, "messages": st.session_state.messages, "preview": st.session_state.messages[0]["content"][:40]}
             if not any(c.get("id") == chat_entry["id"] for c in st.session_state.past_chats):
                 st.session_state.past_chats.append(chat_entry)
