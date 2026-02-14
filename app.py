@@ -30,11 +30,18 @@ LANG_SYSTEM_PROMPT = {
 MODEL_OPTS = {"temperature": 0.3, "num_predict": 1024}
 HISTORY_FILE = "chat_history.json"
 
-st.set_page_config(page_title="SkillSling AI", page_icon="🚀", layout="wide")
+# ==================== MOBILE-OPTIMIZED CONFIG ====================
+st.set_page_config(
+    page_title="SkillSling AI", 
+    page_icon="🚀", 
+    layout="wide",
+    initial_sidebar_state="collapsed"  # ✅ KEY CHANGE: Sidebar hidden on mobile
+)
 
-# ==================== MODERN DARK UI CSS ====================
+# ==================== MOBILE-FIRST RESPONSIVE CSS ====================
 st.markdown("""
     <style>
+    /* Base styling */
     .stApp { background-color: #0b0d11; color: #e3e3e3; }
     section[data-testid="stSidebar"] { background-color: #111216 !important; border-right: 1px solid #333; }
     
@@ -51,6 +58,50 @@ st.markdown("""
     
     header[data-testid="stHeader"] { background-color: rgba(11, 13, 17, 0.9) !important; }
     #MainMenu, footer {visibility: hidden;}
+    
+    /* ✅ MOBILE-FIRST RESPONSIVE FIXES */
+    @media (max-width: 768px) {
+        /* Prevent keyboard from covering input */
+        .stChatInput {
+            padding-bottom: 80px !important;
+            position: sticky !important;
+            bottom: 0 !important;
+            z-index: 999 !important;
+        }
+        
+        /* Readable text on small screens */
+        .stChatMessage {
+            font-size: 16px !important;
+            padding: 0.8rem !important;
+            max-width: 95% !important;
+        }
+        
+        /* Ensure sidebar is usable when opened */
+        [data-testid="stSidebar"] {
+            min-width: 0px !important;
+        }
+        
+        /* Adjust sidebar width when expanded on mobile */
+        [data-testid="stSidebar"] > div:first-child {
+            width: 80vw !important;
+        }
+        
+        /* Make buttons touch-friendly */
+        .stButton button {
+            min-height: 44px !important;
+            font-size: 16px !important;
+        }
+        
+        /* Welcome text on mobile */
+        h1 {
+            font-size: 1.8rem !important;
+        }
+        
+        /* Metric text smaller on mobile */
+        .metric-text {
+            font-size: 0.65rem !important;
+        }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -85,7 +136,7 @@ with st.sidebar:
     if uploaded_file:
         reader = PdfReader(uploaded_file)
         st.session_state.context_text = "\n".join([p.extract_text() for p in reader.pages[:10]])
-        st.success("Notes Attached!")
+        st.success("✅ Notes Attached!")
 
     st.markdown("---")
     st.subheader("Interactive Study")
@@ -110,6 +161,11 @@ for i, msg in enumerate(st.session_state.messages):
         st.markdown(f"<div class='metric-text'>Latency: {msg['perf']}s | AMD Optimized</div>", unsafe_allow_html=True)
 
 # ==================== INPUT ====================
+col1, col2 = st.columns([0.9, 0.1])
+with col2:
+    if st.button("🎤", help="Voice Input (Mobile Friendly)"):
+        st.toast("Voice input feature coming soon or use your mobile keyboard's mic!")
+
 prompt = st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anything..."))
 
 if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"] == "user" and len(st.session_state.messages) > 0 and "assistant" not in [m["role"] for m in st.session_state.messages[-1:]]):
@@ -149,3 +205,18 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
             save_history(st.session_state.past_chats)
         except Exception as e:
             st.error(f"Inference Error: {str(e)}")
+
+# ==================== MOBILE KEYBOARD FIX ====================
+# ✅ Ensures input field scrolls into view when keyboard opens
+st.markdown("""
+    <script>
+    const input = window.parent.document.querySelector('input[data-testid="stChatInput"]');
+    if (input) {
+        input.addEventListener('focus', () => {
+            setTimeout(() => {
+                input.scrollIntoView({behavior: 'smooth', block: 'end'});
+            }, 300);
+        });
+    }
+    </script>
+""", unsafe_allow_html=True)
