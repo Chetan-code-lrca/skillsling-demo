@@ -222,18 +222,28 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
                     st.error("No API Key found for Cloud Mode. Please set GOOGLE_API_KEY in secrets.")
                     st.stop()
                 
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                # Convert messages to Gemini format
-                history = []
-                for m in messages[:-1]:
-                    role = "user" if m["role"] in ["user", "system"] else "model"
-                    history.append({"role": role, "parts": [m["content"]]})
-                
-                chat = model.start_chat(history=history)
-                response = chat.send_message(messages[-1]["content"], stream=True)
-                for chunk in response:
-                    full_res += chunk.text
-                    p_hold.markdown(full_res + "▌")
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # Convert messages to Gemini format
+                    history = []
+                    for m in messages[:-1]:
+                        role = "user" if m["role"] in ["user", "system"] else "model"
+                        history.append({"role": role, "parts": [m["content"]]})
+                    
+                    chat = model.start_chat(history=history)
+                    response = chat.send_message(messages[-1]["content"], stream=True)
+                    for chunk in response:
+                        if chunk.text:
+                            full_res += chunk.text
+                            p_hold.markdown(full_res + "▌")
+                except Exception as gen_err:
+                    # Fallback to gemini-pro if flash fails
+                    model = genai.GenerativeModel('gemini-pro')
+                    response = model.generate_content(messages[-1]["content"], stream=True)
+                    for chunk in response:
+                        if chunk.text:
+                            full_res += chunk.text
+                            p_hold.markdown(full_res + "▌")
 
             duration = round(time.time() - start_t, 2)
             p_hold.markdown(full_res)
