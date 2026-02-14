@@ -31,6 +31,9 @@ CURRENT_FACTS = {
     # President
     "india president": "Droupadi Murmu (President since July 2022)",
     "current president of india": "Droupadi Murmu (since July 2022)",
+
+    # Economic Theories
+    "drain theory": "Drain Theory (Dadabhai Naoroji, 19th century): Systematic transfer of wealth from India to Britain during British rule without adequate return. Key sources: Salaries of British officials, profits of British companies, 'Home Charges' (pensions, admin), interest on debt, and export surplus not returned to India.",
 }
 
 def get_current_facts(query):
