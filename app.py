@@ -222,40 +222,35 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
                     st.error("🔑 **Google API Key Missing:** Go to Streamlit Settings > Secrets and add `GOOGLE_API_KEY = 'your_key_here'`")
                     st.stop()
                 
-                gemini_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
-                response_stream = None
-                last_error = ""
-                
-                for model_name in gemini_models:
-                    try:
-                        model = genai.GenerativeModel(model_name)
-                        # Simplified history: just the last few messages to ensure stability
-                        history = []
-                        # Filter for alternating roles (Gemini requirement)
-                        for m in messages[-5:-1]: # Last 4 messages
-                            if m["role"] == "system": continue
-                            role = "user" if m["role"] == "user" else "model"
-                            history.append({"role": role, "parts": [m["content"]]})
-                        
-                        chat = model.start_chat(history=history)
-                        response_stream = chat.send_message(messages[-1]["content"], stream=True)
-                        break 
-                    except Exception as e:
-                        last_error = str(e)
-                        continue 
-                
-                if response_stream:
-                    try:
-                        for chunk in response_stream:
-                            if chunk.text:
-                                full_res += chunk.text
-                                p_hold.markdown(full_res + "▌")
-                    except Exception as e:
-                        st.error(f"Streaming Error: {str(e)}")
-                        st.stop()
-                else:
+                # Use the most stable model ID
+                model_name = "gemini-1.5-flash"
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    
+                    # Construct a single prompt with context for maximum stability
+                    full_prompt = ""
+                    if st.session_state.context_text:
+                        full_prompt += f"CONTEXT FROM NOTES:\n{st.session_state.context_text[:3000]}\n\n"
+                    
+                    # Add recent history for context
+                    for m in messages[-3:-1]:
+                        role = "Student" if m["role"] == "user" else "Tutor"
+                        full_prompt += f"{role}: {m['content']}\n"
+                    
+                    full_prompt += f"Student: {messages[-1]['content']}\n"
+                    full_prompt += f"\nSystem Instruction: {sys_p}\n"
+                    
+                    response = model.generate_content(full_prompt, stream=True)
+                    
+                    for chunk in response:
+                        if chunk.text:
+                            full_res += chunk.text
+                            p_hold.markdown(full_res + "▌")
+                            
+                except Exception as e:
+                    last_error = str(e)
                     st.error(f"❌ **Cloud AI Error:** {last_error}")
-                    st.info("Tip: Check if your API Key is valid at aistudio.google.com")
+                    st.info("Tip: If you see a 404, the Streamlit environment might need a refresh. Try 'Clear Cache' in Streamlit menu.")
                     st.stop()
 
             duration = round(time.time() - start_t, 2)
