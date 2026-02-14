@@ -13,7 +13,14 @@ from pypdf import PdfReader
 AVAILABLE_MODELS = ["llama3.2:3b", "gemma2:2b", "phi3:mini"]
 
 # Gemini Fallback Setup
-GEMINI_API_KEY = st.secrets.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+GEMINI_API_KEY = None
+try:
+    # Safely check for secrets without crashing local run
+    GEMINI_API_KEY = st.secrets.get("GOOGLE_API_KEY")
+except:
+    # If no secrets file exists locally, check environment variables
+    GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
+
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
