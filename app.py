@@ -19,74 +19,50 @@ PLACEHOLDERS = {
 }
 
 LANG_SYSTEM_PROMPT = {
-    "Hindi": "You are SkillSling AI – friendly tutor for Class 8-12 students.\nजब भी प्रश्न हिंदी में पूछा जाए तो उत्तर 100% हिंदी (देवनागरी लिपि) में दें।\n- सरल और स्पष्ट उत्तर दें\n- गणित के प्रश्नों में चरण दिखाएं\n- प्रोत्साहित करने वाले शब्द प्रयोग करें",
-    "English": "You are SkillSling AI – friendly tutor for Class 8-12 students.\nAlways respond ONLY in English.\n- Give simple and clear answers\n- Use tables when needed\n- Show steps for math problems\n- Be encouraging",
-    "Hinglish": "You are SkillSling AI – friendly tutor for Class 8-12 students.\nHinglish mein jawaab dein - Hindi + English mix.\n- Simple answers dein\n- Math mein steps dikhayen",
-    "Tamil": "You are SkillSling AI – friendly tutor for Class 8-12 students.\nதமிழில் மட்டுமே பதில் கூறவும் - Tamil script only.\n- எளிதான பதில் கூறவும்\n- கணிதத்தில் படிகள் காட்டவும்",
-    "Telugu": "You are SkillSling AI – friendly tutor for Class 8-12 students.\nTelugu lo em chestunnavo ani reply ivvu - Telugu script only, no English.\n- Simple ga ela jawab ivvu\n- Maths lo steps peduthu\n- Encourage words use chesuko"
+    "Hindi": "MANDATE: RESPOND ONLY IN HINDI DEVANAGARI SCRIPT. Follow NCERT guidelines.",
+    "English": "MANDATE: RESPOND ONLY IN ENGLISH. Follow NCERT guidelines.",
+    "Hinglish": "MANDATE: RESPOND IN HINGLISH (HINDI+ENGLISH MIX). Follow NCERT guidelines.",
+    "Tamil": "MANDATE: RESPOND ONLY IN TAMIL SCRIPT. Follow NCERT guidelines.",
+    "Telugu": "MANDATE: RESPOND ONLY IN TELUGU SCRIPT. Follow NCERT guidelines."
 }
 
-MODEL_OPTS = {
-    "llama3.2:3b": {"temperature": 0.6, "num_predict": 1024},
-    "gemma2:2b": {"temperature": 0.6, "num_predict": 800},
-    "phi3:mini": {"temperature": 0.6, "num_predict": 800}
-}
-
+MODEL_OPTS = {"temperature": 0.3, "num_predict": 1024}
 HISTORY_FILE = "chat_history.json"
 
 st.set_page_config(page_title="SkillSling AI", page_icon="🚀", layout="wide")
 
-# ==================== ADVANCED UI CSS ====================
+# ==================== CSS ====================
 st.markdown("""
     <style>
     .stApp { background-color: #0b0d11; color: #e3e3e3; }
     section[data-testid="stSidebar"] { background-color: #111216 !important; border-right: 1px solid #333; }
-    
+    .stChatMessage { border-radius: 12px; padding: 1.2rem; margin-bottom: 0rem; max-width: 850px; margin-left: auto; margin-right: auto; }
+    [data-testid="stChatMessageUser"] { background-color: #1e1f23 !important; border: 1px solid #333; }
     .perf-badge {
         background: linear-gradient(90deg, #ed1c24 0%, #000000 100%);
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        color: white;
-        text-transform: uppercase;
-        border: 1px solid #ed1c24;
-        display: inline-block;
-        margin-bottom: 10px;
+        padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; color: white;
+        text-transform: uppercase; border: 1px solid #ed1c24; display: inline-block; margin-bottom: 10px;
     }
-
-    .stChatMessage { border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; max-width: 850px; margin-left: auto; margin-right: auto; }
-    [data-testid="stChatMessageUser"] { background-color: #1e1f23 !important; border: 1px solid #333; }
-    [data-testid="stChatMessageAssistant"] { background-color: transparent !important; }
-    .stChatInputContainer { background-color: #0b0d11 !important; border-top: 1px solid #333; padding-bottom: 1rem; }
-    textarea { background-color: #1e1f23 !important; color: #e3e3e3 !important; border: 1px solid #444 !important; }
-    
-    .welcome-card {
-        background: linear-gradient(180deg, #1e1f23 0%, #111216 100%);
-        border: 1px solid #ed1c24;
-        padding: 2.5rem;
-        border-radius: 20px;
-        text-align: center;
-        margin: 5rem auto;
-        max-width: 700px;
-        box-shadow: 0 10px 30px rgba(237, 28, 36, 0.1);
-    }
-    
+    .metric-text { font-size: 0.8rem; opacity: 0.5; font-family: monospace; margin-top: -10px; margin-bottom: 10px;}
     header[data-testid="stHeader"] { background-color: rgba(11, 13, 17, 0.9) !important; }
-    button[kind="header"] { color: white !important; }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    #MainMenu, footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
-# ==================== SESSION STATE ====================
+# ==================== STATE & HISTORY ====================
 if "messages" not in st.session_state: st.session_state.messages = []
 if "language" not in st.session_state: st.session_state.language = "English"
 if "model" not in st.session_state: st.session_state.model = "llama3.2:3b"
 if "past_chats" not in st.session_state: st.session_state.past_chats = []
 if "current_chat_id" not in st.session_state: st.session_state.current_chat_id = f"chat_{int(time.time())}"
+if "edit_index" not in st.session_state: st.session_state.edit_index = None
 
-# ==================== HISTORY FUNCTIONS ====================
+def save_history(history):
+    try:
+        with io.open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except: pass
+
 def load_history():
     if os.path.exists(HISTORY_FILE):
         try:
@@ -94,128 +70,125 @@ def load_history():
         except: return []
     return []
 
-def save_history(history):
-    try:
-        with io.open(HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
-    except Exception as e: st.error(f"Failed to save history: {e}")
-
 if "history_loaded" not in st.session_state:
-    st.session_state.history_loaded = True
     st.session_state.past_chats = load_history()
+    st.session_state.history_loaded = True
 
 # ==================== SIDEBAR ====================
 with st.sidebar:
-    st.markdown("<div style='text-align: center;'><h2 style='color: #ed1c24 !important; margin-bottom: 0;'>SKILLSLING AI</h2><p style='font-size: 0.8rem; opacity: 0.6;'>AMD SLINGSHOT 2026</p></div>", unsafe_allow_html=True)
-    
+    st.markdown("<h2 style='color: #ed1c24 !important; text-align: center;'>SKILLSLING</h2>", unsafe_allow_html=True)
     st.markdown("<div class='perf-badge'>⚡ AMD LOCAL INFERENCE</div>", unsafe_allow_html=True)
     
     if st.button("➕ New Session", use_container_width=True):
-        if len(st.session_state.messages) > 0:
-            chat_entry = {
-                "id": st.session_state.current_chat_id,
-                "language": st.session_state.language,
-                "model": st.session_state.model,
-                "messages": st.session_state.messages,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "preview": st.session_state.messages[0]["content"][:40] if st.session_state.messages else "New Session"
-            }
-            if not any(c.get("id") == chat_entry["id"] for c in st.session_state.past_chats):
-                st.session_state.past_chats.append(chat_entry)
-            save_history(st.session_state.past_chats)
-        st.session_state.current_chat_id = f"chat_{int(time.time())}"
         st.session_state.messages = []
+        st.session_state.edit_index = None
+        st.session_state.current_chat_id = f"chat_{int(time.time())}"
         st.rerun()
 
     st.markdown("---")
-    st.subheader("Settings")
-    lang_options = ["Hindi", "English", "Hinglish", "Tamil", "Telugu"]
-    st.session_state.language = st.selectbox("🌍 Study Language", lang_options, index=lang_options.index(st.session_state.language))
-    st.session_state.model = st.selectbox("🤖 Brain Model", AVAILABLE_MODELS, index=AVAILABLE_MODELS.index(st.session_state.model))
+    st.subheader("Interactive Study")
+    if st.button("📝 Test My Knowledge", use_container_width=True):
+        if st.session_state.messages:
+            st.session_state.messages.append({"role": "user", "content": "Generate a short quiz based on our study session in my current language."})
+            st.rerun()
+        else:
+            st.warning("Chat first to generate a quiz!")
 
     st.markdown("---")
-    st.subheader("Offline History")
+    st.subheader("Settings")
+    new_lang = st.selectbox("Language", ["English", "Hindi", "Hinglish", "Tamil", "Telugu"], index=["English", "Hindi", "Hinglish", "Tamil", "Telugu"].index(st.session_state.language))
+    if new_lang != st.session_state.language:
+        st.session_state.language = new_lang
+        st.session_state.messages = []
+        st.rerun()
+
+    st.session_state.model = st.selectbox("Model", AVAILABLE_MODELS, index=AVAILABLE_MODELS.index(st.session_state.model))
+
+    st.markdown("---")
+    st.subheader("History")
     if st.session_state.past_chats:
         for idx, chat in enumerate(reversed(st.session_state.past_chats[-10:])):
             real_idx = len(st.session_state.past_chats) - 1 - idx
-            preview = (chat.get("preview") or "Session")[:25] + "..."
-            col1, col2 = st.columns([5, 1])
+            preview = (chat.get("preview") or "Session")[:20] + "..."
+            col1, col2 = st.columns([4, 1])
             with col1:
-                if st.button(f"💬 {preview}", key=f"btn_{chat.get('id', real_idx)}", use_container_width=True):
-                    st.session_state.current_chat_id = chat.get("id", "")
+                if st.button(f"💬 {preview}", key=f"hist_{real_idx}", use_container_width=True):
                     st.session_state.messages = chat.get("messages", [])
+                    st.session_state.current_chat_id = chat.get("id")
                     st.rerun()
             with col2:
-                if st.button("🗑️", key=f"del_{chat.get('id', real_idx)}"):
+                if st.button("🗑️", key=f"del_hist_{real_idx}"):
                     st.session_state.past_chats.pop(real_idx)
                     save_history(st.session_state.past_chats)
                     st.rerun()
+    else:
+        st.caption("No history found")
 
-# ==================== MAIN CONTENT ====================
+# ==================== MAIN DISPLAY ====================
+if st.session_state.edit_index is not None:
+    st.info("✏️ Edit Question Mode")
+    edit_val = st.session_state.messages[st.session_state.edit_index]["content"]
+    new_text = st.text_area("Update your question:", value=edit_val, height=100)
+    c1, c2 = st.columns([1, 5])
+    if c1.button("Update"):
+        st.session_state.messages = st.session_state.messages[:st.session_state.edit_index]
+        st.session_state.messages.append({"role": "user", "content": new_text})
+        st.session_state.edit_index = None
+        st.rerun()
+    if c2.button("Cancel"):
+        st.session_state.edit_index = None
+        st.rerun()
+    st.stop()
+
 if not st.session_state.messages:
-    st.markdown("""
-        <div class="welcome-card">
-            <h1 style='color: #ed1c24 !important;'>Empowering Students Offline</h1>
-            <p style='font-size: 1.1rem;'>Experience the power of local AI in your native language.</p>
-            <div style='margin-top: 2rem;'>
-                <span style='background: #333; padding: 8px 15px; border-radius: 10px; margin: 5px; display: inline-block;'>🔒 100% Private</span>
-                <span style='background: #333; padding: 8px 15px; border-radius: 10px; margin: 5px; display: inline-block;'>🚀 Zero Latency</span>
-                <span style='background: #333; padding: 8px 15px; border-radius: 10px; margin: 5px; display: inline-block;'>🌍 Multilingual</span>
-            </div>
-            <p style='margin-top: 2rem; opacity: 0.6;'>Type your doubt below to start learning.</p>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; padding: 50px;'><h1 style='color:#ed1c24;'>SkillSling AI</h1><p>Offline Tutoring for AMD Slingshot 2026</p></div>", unsafe_allow_html=True)
 
-# Display Messages
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]): st.markdown(msg["content"])
+for i, msg in enumerate(st.session_state.messages):
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+    if msg["role"] == "user":
+        c1, c2, _ = st.columns([0.05, 0.05, 0.9])
+        if c1.button("🗑️", key=f"d_{i}"):
+            st.session_state.messages = st.session_state.messages[:i]
+            st.rerun()
+        if c2.button("✏️", key=f"e_{i}"):
+            st.session_state.edit_index = i
+            st.rerun()
+    if "perf" in msg and msg["role"] == "assistant":
+        st.markdown(f"<div class='metric-text' style='max-width:850px; margin:auto; padding-left:1.2rem;'>Latency: {msg['perf']}s</div>", unsafe_allow_html=True)
 
 # ==================== INFERENCE ====================
 prompt = st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anything..."))
 
-if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"] == "user" and len(st.session_state.messages) == 1):
+if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"] == "user" and st.session_state.edit_index is None):
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.rerun()
     else:
         prompt = st.session_state.messages[-1]["content"]
 
-    system_prompt = LANG_SYSTEM_PROMPT.get(st.session_state.language, LANG_SYSTEM_PROMPT["English"])
-    messages = [{"role": "system", "content": system_prompt}]
-    
-    verified_fact = get_current_facts(prompt)
-    if verified_fact:
-        messages.append({"role": "system", "content": f"IMPORTANT VERIFIED FACT: {verified_fact}"})
-    
-    for msg in st.session_state.messages: messages.append(msg)
+    sys_p = LANG_SYSTEM_PROMPT.get(st.session_state.language, LANG_SYSTEM_PROMPT["English"])
+    messages = [{"role": "system", "content": sys_p}]
+    fact = get_current_facts(prompt)
+    if fact: messages.append({"role": "system", "content": f"FACT: {fact}"})
+    for m in st.session_state.messages: messages.append(m)
 
     with st.chat_message("assistant"):
-        placeholder = st.empty()
+        p_hold = st.empty()
         full_res = ""
+        start_t = time.time()
         try:
-            with st.spinner("AMD Local Inference in progress..."):
-                stream = ollama.chat(
-                    model=st.session_state.model,
-                    messages=messages,
-                    stream=True,
-                    options=MODEL_OPTS.get(st.session_state.model, {"temperature": 0.6})
-                )
+            with st.spinner("Processing..."):
+                stream = ollama.chat(model=st.session_state.model, messages=messages, stream=True, options=MODEL_OPTS)
                 for chunk in stream:
                     if 'message' in chunk:
                         full_res += chunk['message']['content']
-                        placeholder.markdown(full_res + "▌")
-                placeholder.markdown(full_res)
-                st.session_state.messages.append({"role": "assistant", "content": full_res})
+                        p_hold.markdown(full_res + "▌")
+                duration = round(time.time() - start_t, 2)
+                p_hold.markdown(full_res)
+                st.session_state.messages.append({"role": "assistant", "content": full_res, "perf": duration})
                 
-                # Auto-save
-                chat_entry = {
-                    "id": st.session_state.current_chat_id,
-                    "language": st.session_state.language,
-                    "model": st.session_state.model,
-                    "messages": st.session_state.messages,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "preview": st.session_state.messages[0]["content"][:40]
-                }
+                chat_entry = {"id": st.session_state.current_chat_id, "messages": st.session_state.messages, "preview": st.session_state.messages[0]["content"][:40]}
                 found = False
                 for idx, c in enumerate(st.session_state.past_chats):
                     if c.get("id") == chat_entry["id"]:
