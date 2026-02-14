@@ -12,6 +12,10 @@ from pypdf import PdfReader
 # ==================== CONFIG ====================
 AVAILABLE_MODELS = ["llama3.2:3b", "gemma2:2b", "phi3:mini"]
 
+# Detect mobile/network constraints
+import platform
+IS_MOBILE_ENV = "arm" in platform.machine().lower() or os.environ.get("STREAMLIT_LOGGER_LEVEL") == "debug"
+
 # Gemini Fallback Setup
 GEMINI_API_KEY = None
 try:
@@ -59,74 +63,131 @@ HISTORY_FILE = "chat_history.json"
 st.set_page_config(
     page_title="SkillSling AI", 
     page_icon="🚀", 
-    layout="wide",
-    initial_sidebar_state="collapsed"  # ✅ KEY CHANGE: Sidebar hidden on mobile
+    layout="centered",
+    initial_sidebar_state="collapsed",
+    menu_items=None
 )
 
 # ==================== MOBILE-FIRST RESPONSIVE CSS ====================
 st.markdown("""
     <style>
-    /* Base styling */
-    .stApp { background-color: #0b0d11; color: #e3e3e3; }
-    section[data-testid="stSidebar"] { background-color: #111216 !important; border-right: 1px solid #333; }
+    /* Reset and Base */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     
-    .stChatMessage { border-radius: 12px; padding: 1.2rem; margin-bottom: 0.5rem; max-width: 850px; margin-left: auto; margin-right: auto; }
-    [data-testid="stChatMessageUser"] { background-color: #1e1f23 !important; border: 1px solid #333; }
+    /* Main app container */
+    .stApp { 
+        background-color: #0b0d11 !important; 
+        color: #e3e3e3; 
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+    
+    /* Main content area */
+    .main {
+        padding: 12px !important;
+    }
+    
+    /* Hide unnecessary elements */
+    #MainMenu, footer, header { visibility: hidden !important; }
+    
+    /* Chat messages - mobile optimized */
+    .stChatMessage {
+        border-radius: 8px !important;
+        padding: 10px !important;
+        margin-bottom: 8px !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        font-size: 15px !important;
+        line-height: 1.4 !important;
+    }
+    
+    .stChatMessage p { margin: 0 !important; }
+    
+    [data-testid="stChatMessageUser"] { 
+        background-color: #1a5490 !important; 
+        margin-left: 0 !important;
+    }
+    
+    [data-testid="stChatMessageAssistant"] { 
+        background-color: #2a2a2a !important;
+    }
+    
+    /* Input container */
+    .stChatInputContainer {
+        padding: 10px 0 !important;
+        position: sticky !important;
+        bottom: 0 !important;
+        background: #0b0d11 !important;
+    }
+    
+    .stChatInput input {
+        font-size: 16px !important;
+        padding: 12px !important;
+        border-radius: 8px !important;
+        min-height: 45px !important;
+    }
+    
+    /* Buttons - touch friendly */
+    .stButton button {
+        min-height: 44px !important;
+        font-size: 14px !important;
+        width: 100% !important;
+        border-radius: 6px !important;
+    }
+    
+    /* Sidebar styling */
+    section[data-testid="stSidebar"] {
+        background-color: #111216 !important;
+        width: 85vw !important;
+    }
+    
+    .stSelectbox, .stFileUploader {
+        font-size: 14px !important;
+    }
+    
+    /* Headers */
+    h1, h2, h3 { 
+        margin-bottom: 12px !important;
+        line-height: 1.2 !important;
+    }
+    
+    h1 { font-size: 24px !important; }
+    h2 { font-size: 18px !important; }
+    h3 { font-size: 16px !important; }
+    
+    /* Text sizes */
+    p, span, div { font-size: 14px !important; }
+    
+    .metric-text { 
+        font-size: 12px !important; 
+        opacity: 0.6 !important; 
+        margin: 8px 0 !important;
+    }
     
     .perf-badge {
-        background: linear-gradient(90deg, #ed1c24 0%, #000000 100%);
-        padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; color: white;
-        text-transform: uppercase; border: 1px solid #ed1c24; display: inline-block; margin-bottom: 10px;
+        background: linear-gradient(90deg, #ed1c24 0%, #000000 100%) !important;
+        padding: 6px 10px !important;
+        border-radius: 16px !important;
+        font-size: 11px !important;
+        font-weight: bold !important;
+        color: white !important;
+        border: 1px solid #ed1c24 !important;
+        display: inline-block !important;
     }
     
-    .metric-text { font-size: 0.75rem; opacity: 0.5; font-family: monospace; margin-top: -5px; margin-bottom: 15px; text-align: center;}
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0d11; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
     
-    header[data-testid="stHeader"] { background-color: rgba(11, 13, 17, 0.9) !important; }
-    #MainMenu, footer {visibility: hidden;}
+    /* Expanders */
+    .streamlit-expanderHeader { padding: 10px !important; }
     
-    /* ✅ MOBILE-FIRST RESPONSIVE FIXES */
-    @media (max-width: 768px) {
-        /* Prevent keyboard from covering input */
-        .stChatInput {
-            padding-bottom: 80px !important;
-            position: sticky !important;
-            bottom: 0 !important;
-            z-index: 999 !important;
-        }
-        
-        /* Readable text on small screens */
-        .stChatMessage {
-            font-size: 16px !important;
-            padding: 0.8rem !important;
-            max-width: 95% !important;
-        }
-        
-        /* Ensure sidebar is usable when opened */
-        [data-testid="stSidebar"] {
-            min-width: 0px !important;
-        }
-        
-        /* Adjust sidebar width when expanded on mobile */
-        [data-testid="stSidebar"] > div:first-child {
-            width: 80vw !important;
-        }
-        
-        /* Make buttons touch-friendly */
-        .stButton button {
-            min-height: 44px !important;
-            font-size: 16px !important;
-        }
-        
-        /* Welcome text on mobile */
-        h1 {
-            font-size: 1.8rem !important;
-        }
-        
-        /* Metric text smaller on mobile */
-        .metric-text {
-            font-size: 0.65rem !important;
-        }
+    /* Messages container */
+    [data-testid="stChatMessageContainer"] {
+        gap: 0 !important;
     }
+    
     </style>
 """, unsafe_allow_html=True)
 
@@ -151,6 +212,11 @@ with st.sidebar:
     
     if not OLLAMA_ACTIVE:
         st.warning("Ollama not detected. Falling back to Cloud AI.")
+        with st.expander("ℹ️ API Status"):
+            if GEMINI_API_KEY:
+                st.success("✅ Gemini API Key found")
+            else:
+                st.error("❌ Gemini API Key missing")
         with st.expander("How to use AMD Local on Mobile?"):
             st.write("1. Open terminal on laptop.")
             st.write("2. Note the 'Network URL' (e.g. 192.168.x.x).")
@@ -229,30 +295,50 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
                         full_res += chunk['message']['content']
                         p_hold.markdown(full_res + "▌")
             else:
-                # Gemini Fallback Logic
+                # Gemini Fallback Logic - simplified for mobile reliability
                 if not GEMINI_API_KEY:
                     st.error("🔑 **Google API Key Missing:** Add `GOOGLE_API_KEY` to Streamlit Secrets.")
                     st.stop()
                 
-                # Aggressive fallback loop
-                test_models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro", "gemini-1.0-pro"]
+                # Use Gemini's chat interface for better stability
+                test_models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"]
                 success = False
                 last_err = ""
 
                 for m_name in test_models:
                     try:
-                        model = genai.GenerativeModel(m_name)
-                        full_prompt = f"System: {sys_p}\n\n"
+                        model = genai.GenerativeModel(
+                            m_name,
+                            system_instruction=sys_p
+                        )
+                        
+                        # Build conversation history for Gemini
+                        chat_history = []
+                        for msg in st.session_state.messages[:-1]:  # All but current user message
+                            if msg["role"] in ["user", "assistant"]:
+                                chat_history.append({
+                                    "role": msg["role"],
+                                    "parts": [msg["content"]]
+                                })
+                        
+                        chat = model.start_chat(history=chat_history)
+                        
+                        # Build user input with context
+                        user_input = st.session_state.messages[-1]["content"]
+                        
+                        # Add context if available
                         if st.session_state.context_text:
-                            full_prompt += f"Context: {st.session_state.context_text[:2000]}\n\n"
+                            user_input += f"\n\n[Context from notes:\n{st.session_state.context_text[:1500]}]"
                         
-                        full_prompt += f"User: {messages[-1]['content']}"
+                        # Add facts if available
+                        fact = get_current_facts(user_input)
+                        if fact:
+                            user_input += f"\n\n[Relevant fact: {fact}]"
                         
-                        response = model.generate_content(full_prompt, stream=True)
-                        for chunk in response:
-                            if chunk.text:
-                                full_res += chunk.text
-                                p_hold.markdown(full_res + "▌")
+                        response = chat.send_message(user_input)
+                        
+                        full_res = response.text
+                        p_hold.markdown(full_res)
                         success = True
                         break
                     except Exception as e:
@@ -260,7 +346,12 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
                         continue
                 
                 if not success:
-                    st.error(f"❌ Cloud AI Error: {last_err}")
+                    if "API_KEY" in last_err or "GOOGLE_API_KEY" in last_err or "not authenticated" in last_err:
+                        st.error("🔑 **API Key Issue:** Make sure GOOGLE_API_KEY is set in Streamlit Secrets")
+                    elif "400" in last_err or "streaming" in last_err.lower():
+                        st.error("⚠️ **Network Issue:** Please reload and try again. If persistent, try different language/model.")
+                    else:
+                        st.error(f"❌ Cloud AI Error: {last_err[:200]}")
                     st.stop()
 
             duration = round(time.time() - start_t, 2)
