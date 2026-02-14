@@ -22,7 +22,8 @@ except:
     GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    # transport='rest' fixes some 404/v1beta issues on cloud hosts
+    genai.configure(api_key=GEMINI_API_KEY, transport='rest')
 
 def is_ollama_running():
     try:
@@ -149,7 +150,11 @@ with st.sidebar:
     st.markdown(f"<div class='perf-badge' style='border-color: {MODE_COLOR}; color: {MODE_COLOR};'>{MODE_TEXT}</div>", unsafe_allow_html=True)
     
     if not OLLAMA_ACTIVE:
-        st.warning("Ollama not detected. Falling back to Cloud AI for demo.")
+        st.warning("Ollama not detected. Falling back to Cloud AI.")
+        with st.expander("How to use AMD Local on Mobile?"):
+            st.write("1. Open terminal on laptop.")
+            st.write("2. Note the 'Network URL' (e.g. 192.168.x.x).")
+            st.write("3. Open that URL on your phone's browser.")
     
     if st.button("➕ New Session", use_container_width=True):
         st.session_state.messages = []
@@ -226,38 +231,36 @@ if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"
             else:
                 # Gemini Fallback Logic
                 if not GEMINI_API_KEY:
-                    st.error("🔑 **Google API Key Missing:** Go to Streamlit Settings > Secrets and add `GOOGLE_API_KEY = 'your_key_here'`")
+                    st.error("🔑 **Google API Key Missing:** Add `GOOGLE_API_KEY` to Streamlit Secrets.")
                     st.stop()
                 
-                # Use the most stable model ID
-                model_name = "gemini-1.5-flash"
-                try:
-                    model = genai.GenerativeModel(model_name)
-                    
-                    # Construct a single prompt with context for maximum stability
-                    full_prompt = ""
-                    if st.session_state.context_text:
-                        full_prompt += f"CONTEXT FROM NOTES:\n{st.session_state.context_text[:3000]}\n\n"
-                    
-                    # Add recent history for context
-                    for m in messages[-3:-1]:
-                        role = "Student" if m["role"] == "user" else "Tutor"
-                        full_prompt += f"{role}: {m['content']}\n"
-                    
-                    full_prompt += f"Student: {messages[-1]['content']}\n"
-                    full_prompt += f"\nSystem Instruction: {sys_p}\n"
-                    
-                    response = model.generate_content(full_prompt, stream=True)
-                    
-                    for chunk in response:
-                        if chunk.text:
-                            full_res += chunk.text
-                            p_hold.markdown(full_res + "▌")
-                            
-                except Exception as e:
-                    last_error = str(e)
-                    st.error(f"❌ **Cloud AI Error:** {last_error}")
-                    st.info("Tip: If you see a 404, the Streamlit environment might need a refresh. Try 'Clear Cache' in Streamlit menu.")
+                # Aggressive fallback loop
+                test_models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro", "gemini-1.0-pro"]
+                success = False
+                last_err = ""
+
+                for m_name in test_models:
+                    try:
+                        model = genai.GenerativeModel(m_name)
+                        full_prompt = f"System: {sys_p}\n\n"
+                        if st.session_state.context_text:
+                            full_prompt += f"Context: {st.session_state.context_text[:2000]}\n\n"
+                        
+                        full_prompt += f"User: {messages[-1]['content']}"
+                        
+                        response = model.generate_content(full_prompt, stream=True)
+                        for chunk in response:
+                            if chunk.text:
+                                full_res += chunk.text
+                                p_hold.markdown(full_res + "▌")
+                        success = True
+                        break
+                    except Exception as e:
+                        last_err = str(e)
+                        continue
+                
+                if not success:
+                    st.error(f"❌ Cloud AI Error: {last_err}")
                     st.stop()
 
             duration = round(time.time() - start_t, 2)
