@@ -64,7 +64,7 @@ st.set_page_config(
     page_title="SkillSling AI", 
     page_icon="🚀", 
     layout="centered",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
     menu_items=None
 )
 
@@ -84,7 +84,7 @@ st.markdown("""
     
     /* Main content area */
     .main {
-        padding: 12px !important;
+        padding: 10px !important;
     }
     
     /* Hide unnecessary elements */
@@ -92,11 +92,11 @@ st.markdown("""
     
     /* Chat messages - mobile optimized */
     .stChatMessage {
-        border-radius: 8px !important;
-        padding: 10px !important;
+        border-radius: 12px !important;
+        padding: 10px 14px !important;
         margin-bottom: 8px !important;
-        max-width: 100% !important;
-        width: 100% !important;
+        max-width: 88% !important;
+        width: auto !important;
         font-size: 15px !important;
         line-height: 1.4 !important;
     }
@@ -105,40 +105,54 @@ st.markdown("""
     
     [data-testid="stChatMessageUser"] { 
         background-color: #1a5490 !important; 
-        margin-left: 0 !important;
+        margin-left: auto !important;
+        border-bottom-right-radius: 2px !important;
+        color: white !important;
     }
     
     [data-testid="stChatMessageAssistant"] { 
         background-color: #2a2a2a !important;
+        margin-right: auto !important;
+        border-bottom-left-radius: 2px !important;
+        color: #e3e3e3 !important;
     }
     
     /* Input container */
     .stChatInputContainer {
-        padding: 10px 0 !important;
-        position: sticky !important;
+        padding: 8px 10px !important;
+        position: fixed !important;
         bottom: 0 !important;
         background: #0b0d11 !important;
+        z-index: 1000 !important;
+        width: 100% !important;
+        left: 0 !important;
     }
     
     .stChatInput input {
         font-size: 16px !important;
         padding: 12px !important;
-        border-radius: 8px !important;
-        min-height: 45px !important;
+        border-radius: 20px !important;
+        min-height: 48px !important;
     }
     
     /* Buttons - touch friendly */
     .stButton button {
-        min-height: 44px !important;
-        font-size: 14px !important;
+        min-height: 48px !important;
+        font-size: 15px !important;
         width: 100% !important;
-        border-radius: 6px !important;
+        border-radius: 10px !important;
+        font-weight: 500 !important;
     }
     
     /* Sidebar styling */
     section[data-testid="stSidebar"] {
         background-color: #111216 !important;
-        width: 85vw !important;
+        width: 300px !important;
+    }
+    
+    /* Ensure chat container doesn't get hidden by fixed input */
+    .stChatMessageContainer {
+        padding-bottom: 80px !important;
     }
     
     .stSelectbox, .stFileUploader {
@@ -259,11 +273,6 @@ for i, msg in enumerate(st.session_state.messages):
         st.markdown(f"<div class='metric-text'>Latency: {msg['perf']}s | AMD Optimized</div>", unsafe_allow_html=True)
 
 # ==================== INPUT ====================
-col1, col2 = st.columns([0.9, 0.1])
-with col2:
-    if st.button("🎤", help="Voice Input (Mobile Friendly)"):
-        st.toast("Voice input feature coming soon or use your mobile keyboard's mic!")
-
 prompt = st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anything..."))
 
 if prompt or (st.session_state.messages and st.session_state.messages[-1]["role"] == "user" and len(st.session_state.messages) > 0 and "assistant" not in [m["role"] for m in st.session_state.messages[-1:]]):
