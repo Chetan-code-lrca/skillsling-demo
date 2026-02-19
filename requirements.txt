@@ -1,5 +1,7 @@
 ﻿streamlit
 ollama
+langchain-community
+langchain-ollama
+langchain-text-splitters
+faiss-cpu
 pypdf
-Pillow
-google-generativeai>=0.5.0
