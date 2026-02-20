@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import ollama
 import time
 import tempfile
@@ -26,7 +26,7 @@ LANGUAGE_SYSTEM_PROMPTS = {
     "Hindi": """तुम एक हिंदी शिक्षक हो।
 अनिवार्य नियम:
 1. तुम्हें केवल और केवल हिंदी देवनागरी लिपि में उत्तर देना है।
-2. कोई भी अंग्रेजी अक्षर, शब्द या वाक्य का उपयोग मत करो।
+2. कोई भी अंग्रेज़ी अक्षर, शब्द या वाक्य का उपयोग मत करो।
 3. तकनीकी शब्दों को भी हिंदी में समझाओ।
 4. सरल हिंदी का प्रयोग करो।
 5. छात्र को प्रोत्साहित करो।
@@ -54,6 +54,7 @@ MANDATORY RULES:
 2. Roman script (a, b, c) use karna hai, Devanagari (अ, आ) nahi.
 3. Simple words use karo jo students samajh sakein.
 4. Student ko encourage karo.
+Sirf jo pucha hai wahi jawab do; extra conversion/volume tabhi likho jab pucha ho.
 Example:
 Question: "Photosynthesis kya hai?"
 Response: "Photosynthesis ek process hai jisme plants apna khana banate hain sunlight use karke..."
@@ -61,8 +62,8 @@ NCERT guidelines follow karo.""",
    
     "Tamil": """நீங்கள் ஒரு தமிழ் ஆசிரியர்.
 கட்டாய விதிகள்:
-1. தமிழ் எழுத்துக்களில் மட்டுமே பதிலளிக்க வேண்டும்.
-2. ஆங்கில எழுத்துக்களோ வார்த்தைகளோ பயன்படுத்த வேண்டாம்.
+1. தமிழ் எழுத்துகளில் மட்டுமே பதிலளிக்க வேண்டும்.
+2. ஆங்கில எழுத்துகள் அல்லது வார்த்தைகள் பயன்படுத்த வேண்டாம்.
 3. தொழில்நுட்ப சொற்களையும் தமிழில் விளக்கவும்.
 4. எளிய தமிழ் சொற்களைப் பயன்படுத்தவும்.
 5. மாணவரை ஊக்குவிக்கவும்.
@@ -94,10 +95,22 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  # This makes sidebar collapsed by default on mobile
 )
 
+# ==================== PWA META (INSTALLABLE) ====================
+st.markdown(
+    """
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiU2tpbGxTbGluZyIsInNob3J0X25hbWUiOiJTa2lsbFNsaW5nIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYjBkMTEiLCJ0aGVtZV9jb2xvciI6IiNlZDFjMjQifQ==" />
+    <meta name="theme-color" content="#0b0d11" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SkillSling" />
+    """,
+    unsafe_allow_html=True
+)
+
 # ==================== PROFESSIONAL DARK UI + MOBILE RESPONSIVE ====================
 st.markdown("""
     <style>
-    /* Base theme */
+    /* Your existing dark AMD styles – keep them all */
     .stApp {
         background: linear-gradient(135deg, #0b0d11 0%, #1a1d23 100%);
         color: #e3e3e3;
@@ -108,7 +121,6 @@ st.markdown("""
         border-right: 2px solid #ed1c24;
     }
     
-    /* Chat styling */
     .stChatMessage {
         border-radius: 12px;
         padding: 1.2rem;
@@ -126,7 +138,6 @@ st.markdown("""
         border-left: 4px solid #00ff88;
     }
     
-    /* AMD Branding */
     .amd-badge {
         background: linear-gradient(90deg, #ed1c24 0%, #ff4444 100%);
         padding: 8px 16px;
@@ -141,7 +152,6 @@ st.markdown("""
         box-shadow: 0 0 20px rgba(237, 28, 36, 0.5);
     }
     
-    /* Performance metrics */
     .perf-metric {
         font-size: 0.7rem;
         opacity: 0.6;
@@ -153,7 +163,6 @@ st.markdown("""
         display: inline-block;
     }
     
-    /* Professional header */
     header[data-testid="stHeader"] {
         background-color: rgba(11, 13, 17, 0.95) !important;
         backdrop-filter: blur(10px);
@@ -161,9 +170,9 @@ st.markdown("""
     
     #MainMenu, footer {visibility: hidden;}
     
-    /* MOBILE RESPONSIVE – this fixes sidebar on phone */
+    /* MOBILE RESPONSIVE – fixes sidebar + input on phones */
     @media (max-width: 768px) {
-        /* Sidebar collapsed by default, hidden unless opened */
+        /* Sidebar starts collapsed & hidden */
         section[data-testid="stSidebar"] {
             min-width: 0 !important;
             width: 0 !important;
@@ -172,7 +181,7 @@ st.markdown("""
             transition: all 0.3s ease;
         }
         
-        /* When sidebar is opened (hamburger tap) */
+        /* When opened via hamburger */
         section[data-testid="stSidebar"][aria-expanded="true"] {
             min-width: 85vw !important;
             width: 85vw !important;
@@ -183,9 +192,10 @@ st.markdown("""
             left: 0 !important;
             height: 100vh !important;
             overflow-y: auto !important;
+            box-shadow: 2px 0 15px rgba(0,0,0,0.6);
         }
         
-        /* Input box stays visible with keyboard */
+        /* Input box stays visible above keyboard */
         .stChatInput {
             padding-bottom: 100px !important;
             position: fixed !important;
@@ -194,15 +204,15 @@ st.markdown("""
             right: 0 !important;
             background: #0b0d11 !important;
             z-index: 999 !important;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
         }
         
-        /* Main content padding so input doesn't overlap chat */
+        /* Prevent chat from being hidden under input */
         .main .block-container {
-            padding-bottom: 120px !important;
+            padding-bottom: 140px !important;
         }
         
-        /* Smaller fonts & spacing on phone */
+        /* Adjust fonts & spacing for phone readability */
         .stChatMessage {
             font-size: 16px !important;
             padding: 0.8rem !important;
@@ -210,22 +220,6 @@ st.markdown("""
         
         h1 { font-size: 1.8rem !important; }
         h2, h3 { font-size: 1.4rem !important; }
-    }
-    
-    /* Copy button styling */
-    .copy-btn {
-        background: #ed1c24;
-        color: white;
-        border: none;
-        padding: 4px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.8rem;
-        margin-top: 8px;
-    }
-    
-    .copy-btn:hover {
-        background: #ff3344;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -267,6 +261,13 @@ with st.sidebar:
     except:
         st.error("❌ Ollama Not Running!")
         st.caption("Start Ollama: `ollama serve`")
+
+    st.markdown("""
+        <div class='amd-badge' style='margin: 10px 0;'>
+            Offline Mode – AMD Powered
+        </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
     
     # Language selection
