@@ -21,7 +21,7 @@ PLACEHOLDERS = {
     "Telugu": "మీ ప్రశ్నను ఇక్కడ టైప్ చేయండి..."
 }
 
-# ULTRA-STRONG LANGUAGE ENFORCEMENT (Native script instructions)
+# ULTRA-STRONG LANGUAGE ENFORCEMENT – Repeat + examples + negative reinforcement
 LANGUAGE_SYSTEM_PROMPTS = {
     "Hindi": """तुम एक हिंदी शिक्षक हो।
 अनिवार्य नियम (3 बार दोहराओ):
@@ -84,7 +84,7 @@ st.set_page_config(
     page_title="SkillSling - AMD Slingshot 2026",
     page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed"  # mobile-first: sidebar hidden by default
 )
 
 # ==================== PROFESSIONAL DARK UI ====================
@@ -154,21 +154,22 @@ st.markdown("""
     
     #MainMenu, footer {visibility: hidden;}
     
-    /* Mobile responsive */
+    /* Mobile responsive – critical for real student phones */
     @media (max-width: 768px) {
         .stChatInput {
             padding-bottom: 80px !important;
             position: sticky !important;
             bottom: 0 !important;
+            z-index: 1000 !important;
+            background: #0b0d11 !important;
         }
         .stChatMessage {
             font-size: 16px !important;
             padding: 0.8rem !important;
         }
-        .sidebar .sidebar-content { width: 85vw !important; }
         section[data-testid="stSidebar"] {
-            width: 0 !important;
             min-width: 0 !important;
+            width: 0 !important;
         }
         .stButton button {
             min-height: 44px !important;
@@ -212,6 +213,8 @@ if "query_count" not in st.session_state:
     st.session_state.query_count = 0
 if "last_language" not in st.session_state:
     st.session_state.last_language = "English"
+if "language_change_counter" not in st.session_state:
+    st.session_state.language_change_counter = 0
 
 # ==================== SIDEBAR ====================
 with st.sidebar:
@@ -243,10 +246,11 @@ with st.sidebar:
         help="AI will respond in this language"
     )
     
-    # Update language WITHOUT clearing chat + force placeholder refresh
+    # Update language + force placeholder/input refresh
     if new_language != st.session_state.language:
         st.session_state.language = new_language
         st.session_state.last_language = new_language
+        st.session_state.language_change_counter += 1
         st.rerun()
     
     # Subject selection
@@ -387,7 +391,7 @@ if st.session_state.language != st.session_state.get("last_language", "English")
 
 # ==================== CHAT LOGIC ====================
 if prompt:
-    # Debug print to terminal
+    # Debug print to terminal – you can remove later
     print(f"DEBUG: INPUT CAPTURED! Prompt: '{prompt}' | Language: {st.session_state.language} | Model: {st.session_state.model}")
 
     # Add user message
@@ -417,7 +421,7 @@ if prompt:
         if len(st.session_state.messages) == 2:  # right after first user message
             ollama_messages.append({
                 "role": "user",
-                "content": f"Important: From now on, reply ONLY in {st.session_state.language}. No English at all. Start now."
+                "content": f"Important reminder: From now on, reply ONLY in {st.session_state.language}. No English at all. Start now."
             })
         
         # 3. Add PDF context if available
