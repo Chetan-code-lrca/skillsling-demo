@@ -21,61 +21,68 @@ PLACEHOLDERS = {
     "Telugu": "మీ ప్రశ్నను ఇక్కడ టైప్ చేయండి..."
 }
 
-# ULTRA-STRONG LANGUAGE ENFORCEMENT – Repeat + examples + negative reinforcement
+# ULTRA-STRONG LANGUAGE ENFORCEMENT (Native script instructions)
 LANGUAGE_SYSTEM_PROMPTS = {
     "Hindi": """तुम एक हिंदी शिक्षक हो।
-अनिवार्य नियम (3 बार दोहराओ):
-1. केवल हिंदी देवनागरी लिपि में उत्तर दो। केवल हिंदी में। केवल हिंदी में।
-2. कोई भी अंग्रेजी अक्षर, शब्द, वाक्य मत लिखो – एक भी नहीं।
+अनिवार्य नियम:
+1. तुम्हें केवल और केवल हिंदी देवनागरी लिपि में उत्तर देना है।
+2. कोई भी अंग्रेजी अक्षर, शब्द या वाक्य का उपयोग मत करो।
 3. तकनीकी शब्दों को भी हिंदी में समझाओ।
-4. सरल हिंदी बोलो।
+4. सरल हिंदी का प्रयोग करो।
 5. छात्र को प्रोत्साहित करो।
-गलत उदाहरण: "Photosynthesis is..."
-सही उदाहरण: "प्रकाश संश्लेषण एक प्रक्रिया है जिसमें पौधे सूर्य की रोशनी से भोजन बनाते हैं।"
+उदाहरण:
+प्रश्न: "What is photosynthesis?"
+गलत उत्तर: "Photosynthesis is..."
+सही उत्तर: "प्रकाश संश्लेषण एक प्रक्रिया है..."
 NCERT दिशा-निर्देशों का पालन करो।""",
-    
+   
     "English": """You are an English tutor for Indian students.
-MANDATORY RULES (repeat 3 times):
-1. Respond ONLY in English language. ONLY in English. ONLY in English.
+MANDATORY RULES:
+1. Respond ONLY in English language.
 2. Use simple, clear English words.
 3. Explain concepts in an easy-to-understand manner.
 4. Encourage the student positively.
 5. Follow NCERT curriculum guidelines.
-Wrong example: "फोटोसिंथेसिस क्या है?"
-Correct example: "Photosynthesis is the process by which plants make their own food using sunlight..."
+Example:
+Question: "फोटोसिंथेसिस क्या है?"
+Response: "Photosynthesis is the process by which plants make their own food using sunlight..."
 Be detailed if the question requires explanation.""",
-    
+   
     "Hinglish": """Tum ek Hinglish tutor ho (Roman script mein Hindi + English mix).
-MANDATORY RULES (repeat 3 times):
-1. Hindi aur English dono ko mix karke likhna hai. ONLY Roman script.
-2. Devanagari (अ, आ) mat use karo.
+MANDATORY RULES:
+1. Hindi aur English dono ko mix karke likhna hai.
+2. Roman script (a, b, c) use karna hai, Devanagari (अ, आ) nahi.
 3. Simple words use karo jo students samajh sakein.
 4. Student ko encourage karo.
 Example:
 Question: "Photosynthesis kya hai?"
 Response: "Photosynthesis ek process hai jisme plants apna khana banate hain sunlight use karke..."
 NCERT guidelines follow karo.""",
-    
+   
     "Tamil": """நீங்கள் ஒரு தமிழ் ஆசிரியர்.
-கட்டாய விதிகள் (3 முறை சொல்லுங்கள்):
-1. தமிழ் எழுத்துக்களில் மட்டுமே பதிலளிக்க வேண்டும். மட்டும் தமிழில். மட்டும் தமிழில்.
-2. ஆங்கில எழுத்துக்கள் அல்லது வார்த்தைகள் பயன்படுத்த வேண்டாம் – ஒன்று கூட இல்லை.
+கட்டாய விதிகள்:
+1. தமிழ் எழுத்துக்களில் மட்டுமே பதிலளிக்க வேண்டும்.
+2. ஆங்கில எழுத்துக்களோ வார்த்தைகளோ பயன்படுத்த வேண்டாம்.
 3. தொழில்நுட்ப சொற்களையும் தமிழில் விளக்கவும்.
 4. எளிய தமிழ் சொற்களைப் பயன்படுத்தவும்.
 5. மாணவரை ஊக்குவிக்கவும்.
-தவறான உதாரணம்: "Photosynthesis is..."
-சரியான உதாரணம்: "ஒளிச்சேர்க்கை என்பது..."
+உதாரணம்:
+கேள்வி: "What is photosynthesis?"
+தவறான பதில்: "Photosynthesis is..."
+சரியான பதில்: "ஒளிச்சேர்க்கை என்பது..."
 NCERT வழிகாட்டுதல்களைப் பின்பற்றவும்.""",
-    
+   
     "Telugu": """మీరు తెలుగు ఉపాధ్యాయులు.
-తప్పనిసరి నియమాలు (3 సార్లు పునరావృతం చేయండి):
-1. తెలుగు లిపిలో మాత్రమే సమాధానం ఇవ్వాలి. మాత్రమే తెలుగులో. మాత్రమే తెలుగులో.
-2. ఆంగ్ల అక్షరాలు, పదాలు వాడకూడదు – ఒక్కటి కూడా కాదు.
+తప్పనిసరి నియమాలు:
+1. మీరు తెలుగు లిపిలో మాత్రమే సమాధానం ఇవ్వాలి.
+2. ఆంగ్ల అక్షరాలు, పదాలు వాడకూడదు.
 3. సాంకేతిక పదాలను కూడా తెలుగులో వివరించండి.
 4. సులభమైన తెలుగు పదాలను ఉపయోగించండి.
 5. విద్యార్థిని ప్రోత్సహించండి.
-తప్పు ఉదాహరణ: "Photosynthesis is..."
-సరైన ఉదాహరణ: "కాంతి సంశ్లేషణ అనేది..."
+ఉదాహరణ:
+ప్రశ్న: "What is photosynthesis?"
+తప్పు జవాబు: "Photosynthesis is..."
+సరైన జవాబు: "కాంతి సంశ్లేషణ అనేది..."
 NCERT మార్గదర్శకాలను అనుసరించండి."""
 }
 
@@ -84,10 +91,10 @@ st.set_page_config(
     page_title="SkillSling - AMD Slingshot 2026",
     page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="collapsed"  # mobile-first: sidebar hidden by default
+    initial_sidebar_state="collapsed"  # This makes sidebar collapsed by default on mobile
 )
 
-# ==================== PROFESSIONAL DARK UI ====================
+# ==================== PROFESSIONAL DARK UI + MOBILE RESPONSIVE ====================
 st.markdown("""
     <style>
     /* Base theme */
@@ -154,28 +161,55 @@ st.markdown("""
     
     #MainMenu, footer {visibility: hidden;}
     
-    /* Mobile responsive – critical for real student phones */
+    /* MOBILE RESPONSIVE – this fixes sidebar on phone */
     @media (max-width: 768px) {
-        .stChatInput {
-            padding-bottom: 80px !important;
-            position: sticky !important;
-            bottom: 0 !important;
-            z-index: 1000 !important;
-            background: #0b0d11 !important;
+        /* Sidebar collapsed by default, hidden unless opened */
+        section[data-testid="stSidebar"] {
+            min-width: 0 !important;
+            width: 0 !important;
+            visibility: hidden !important;
+            overflow: hidden !important;
+            transition: all 0.3s ease;
         }
+        
+        /* When sidebar is opened (hamburger tap) */
+        section[data-testid="stSidebar"][aria-expanded="true"] {
+            min-width: 85vw !important;
+            width: 85vw !important;
+            visibility: visible !important;
+            z-index: 1000 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            height: 100vh !important;
+            overflow-y: auto !important;
+        }
+        
+        /* Input box stays visible with keyboard */
+        .stChatInput {
+            padding-bottom: 100px !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            background: #0b0d11 !important;
+            z-index: 999 !important;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        }
+        
+        /* Main content padding so input doesn't overlap chat */
+        .main .block-container {
+            padding-bottom: 120px !important;
+        }
+        
+        /* Smaller fonts & spacing on phone */
         .stChatMessage {
             font-size: 16px !important;
             padding: 0.8rem !important;
         }
-        section[data-testid="stSidebar"] {
-            min-width: 0 !important;
-            width: 0 !important;
-        }
-        .stButton button {
-            min-height: 44px !important;
-            font-size: 16px !important;
-        }
+        
         h1 { font-size: 1.8rem !important; }
+        h2, h3 { font-size: 1.4rem !important; }
     }
     
     /* Copy button styling */
@@ -213,8 +247,6 @@ if "query_count" not in st.session_state:
     st.session_state.query_count = 0
 if "last_language" not in st.session_state:
     st.session_state.last_language = "English"
-if "language_change_counter" not in st.session_state:
-    st.session_state.language_change_counter = 0
 
 # ==================== SIDEBAR ====================
 with st.sidebar:
@@ -246,11 +278,10 @@ with st.sidebar:
         help="AI will respond in this language"
     )
     
-    # Update language + force placeholder/input refresh
+    # Update language WITHOUT clearing chat + force placeholder refresh
     if new_language != st.session_state.language:
         st.session_state.language = new_language
         st.session_state.last_language = new_language
-        st.session_state.language_change_counter += 1
         st.rerun()
     
     # Subject selection
@@ -391,7 +422,7 @@ if st.session_state.language != st.session_state.get("last_language", "English")
 
 # ==================== CHAT LOGIC ====================
 if prompt:
-    # Debug print to terminal – you can remove later
+    # Debug print to terminal
     print(f"DEBUG: INPUT CAPTURED! Prompt: '{prompt}' | Language: {st.session_state.language} | Model: {st.session_state.model}")
 
     # Add user message
