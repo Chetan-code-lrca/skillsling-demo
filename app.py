@@ -16,7 +16,7 @@ AVAILABLE_MODELS = [
     "llama3.2:3b",
     "llama3.1:8b",
     "qwen2.5:7b-instruct",
-    "qwen2.5:7b-instruct-q4_K_M",
+    "qwen2.5:7b-instruct-q4_K_M",  # fastest & still strong
     "phi3:mini"
 ]
 
@@ -44,6 +44,7 @@ LANGUAGE_SYSTEM_PROMPTS = {
     "Telugu": """మీరు తెలుగు ఉపాధ్యాయులు. తెలుగులో మాత్రమే సమాధానం ఇవ్వండి. సులభమైన భాష వాడండి."""
 }
 
+# Depth instructions per subject
 DEPTH_INSTRUCTIONS = {
     "General": """
 Always structure answers like a patient, expert tutor:
@@ -54,11 +55,12 @@ Always structure answers like a patient, expert tutor:
 """,
     "Science": """
 Include:
-• Cellular location
-• Key enzymes
-• Balanced equations
-• ATP/NADPH counts
-• Related concepts
+• Exact cellular location
+• Key enzymes with full names
+• Balanced chemical equations
+• ATP/NADPH/electron counts
+• Related concepts (photorespiration etc.)
+End with boxed key takeaway **\\boxed{Key Takeaway: ...}**
 """,
     "Mathematics": """
 STRICT MATH MODE:
@@ -66,13 +68,13 @@ STRICT MATH MODE:
 2. Main formula/theorem
 3. Step-by-step numbered solution
 4. Algebraic details
-5. Box final answer **\boxed{}**
+5. Box final answer **\\boxed{answer}**
 6. Re-check / substitute
-7. Common mistakes
+7. Common mistakes to avoid
 """
 }
 
-# Verified fact database (expand as needed)
+# Verified fact database (expand later)
 FACT_DB = {
     "indian independence": "15 August 1947",
     "french revolution": "1789",
@@ -81,6 +83,7 @@ FACT_DB = {
     "first battle of panipat": "1526",
     "battle of plassey": "1757",
     "revolt of 1857": "1857",
+    "world war ii end": "1945",
 }
 
 # ==================== PAGE CONFIG & STYLE ====================
@@ -105,6 +108,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Auto-focus input
 st.markdown("""
 <script>
     const input = window.parent.document.querySelector('input[data-testid="stChatInput"]');
@@ -117,7 +121,7 @@ defaults = {
     "messages": [],
     "subject": "General",
     "language": "English",
-    "model": "qwen2.5:7b-instruct-q4_K_M",  # fast & strong
+    "model": "qwen2.5:7b-instruct-q4_K_M",
     "vector_store": None,
     "total_inference_time": 0.0,
     "query_count": 0,
@@ -228,67 +232,59 @@ if prompt := st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anyt
         start = time.time()
 
         try:
-            # ── Hybrid subject-specific engine ────────────────────────────────
             answer_content = None
 
+            # ── Hybrid engines ────────────────────────────────
+            prompt_lower = prompt.lower()
+
+            # 1. Mathematics – sympy first
             if st.session_state.subject == "Mathematics":
-                # Try sympy for integration/differentiation
                 try:
                     x = sp.symbols('x')
-                    # Simple heuristic to detect integral
-                    if "integrate" in prompt.lower() or "∫" in prompt or "dx" in prompt.lower():
-                        expr_str = prompt.lower().split("integrate")[-1].strip().replace("from", "").replace("to", "").replace("dx", "").strip()
-                        expr = sp.sympify(expr_str)
+                    if any(word in prompt_lower for word in ["integrate", "∫", "dx"]):
+                        # Crude parse – improve later with better NLP
+                        expr_part = prompt_lower.split("integrate")[-1].strip().replace("from", "").replace("to", "").replace("dx", "").strip()
+                        expr = sp.sympify(expr_part)
                         result = sp.integrate(expr, x)
                         answer_content = f"The integral evaluates to **\\boxed{{{result}}}**.\n\nLet me explain step-by-step..."
                 except:
-                    pass  # fallback to LLM if sympy fails
+                    pass
 
-            elif st.session_state.subject == "Social Science":
-                # Check fact DB for dates/events
-                prompt_lower = prompt.lower()
+            # 2. History / Social Science – fact DB first
+            if st.session_state.subject in ["Social Science", "General"]:
                 for key, value in FACT_DB.items():
                     if key in prompt_lower:
                         answer_content = f"{key.title()} occurred in **{value}**.\n\nLet me explain in detail..."
                         break
 
-            # If no special handler → normal LLM call
-            if answer_content is None:
-                stream = ollama.chat(
-                    model=st.session_state.model,
-                    messages=msgs,
-                    stream=True,
-                    options={"temperature": 0.0, "top_p": 0.6, "top_k": 30, "repeat_penalty": 1.15, "num_predict": 512}
-                )
-
-                for chunk in stream:
-                    if 'message' in chunk and 'content' in chunk['message']:
-                        full_response += chunk['message']['content']
-                        placeholder.markdown(full_response + "▌")
-
-                answer_content = full_response
-
-            else:
-                # For hybrid cases — let LLM elaborate on the fact/result
+            # If hybrid handler found → elaborate with LLM
+            if answer_content is not None:
                 elaboration_msgs = msgs + [{"role": "user", "content": f"Elaborate on this fact/result in detail: {answer_content}"}]
                 stream = ollama.chat(
                     model=st.session_state.model,
                     messages=elaboration_msgs,
                     stream=True,
-                    options={"temperature": 0.0, "top_p": 0.6, "top_k": 30, "repeat_penalty": 1.15, "num_predict": 512}
+                    options={"temperature": 0.0, "top_p": 0.6, "top_k": 30, "repeat_penalty": 1.15, "num_predict": 1024}
+                )
+            else:
+                # Normal LLM path
+                stream = ollama.chat(
+                    model=st.session_state.model,
+                    messages=msgs,
+                    stream=True,
+                    options={"temperature": 0.0, "top_p": 0.6, "top_k": 30, "repeat_penalty": 1.15, "num_predict": 1024}
                 )
 
-                for chunk in stream:
-                    if 'message' in chunk and 'content' in chunk['message']:
-                        full_response += chunk['message']['content']
-                        placeholder.markdown(full_response + "▌")
+            for chunk in stream:
+                if 'message' in chunk and 'content' in chunk['message']:
+                    full_response += chunk['message']['content']
+                    placeholder.markdown(full_response + "▌")
 
-                answer_content = full_response
+            answer_content = full_response
 
-            # Show final answer
             placeholder.markdown(answer_content)
 
-            # Background verification (optional for non-math/science)
+            # Background verification
             def background_verification():
                 try:
                     check = f"""Strict checker. If any error, output corrected answer. If correct, output exactly the same. No explanation.
@@ -298,7 +294,7 @@ Answer:
                     verification = ollama.chat(
                         model=st.session_state.model,
                         messages=[{"role": "user", "content": check}],
-                        options={"temperature": 0.0, "top_p": 0.6, "num_predict": 512}
+                        options={"temperature": 0.0, "top_p": 0.6, "num_predict": 1024}
                     )
                     corrected = verification['message']['content'].strip()
                     if corrected != answer_content:
@@ -323,7 +319,7 @@ Answer:
         except Exception as e:
             placeholder.markdown(f"Error: {str(e)}\n\nIs Ollama running?")
 
-# Auto-focus
+# Final auto-focus
 st.markdown("""
 <script>
     const input = window.parent.document.querySelector('input[data-testid="stChatInput"]');
