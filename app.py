@@ -3,6 +3,7 @@ import ollama
 import time
 import tempfile
 import os
+import threading
 from datetime import datetime
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -14,6 +15,7 @@ AVAILABLE_MODELS = [
     "llama3.2:3b",
     "llama3.1:8b",
     "qwen2.5:7b-instruct",
+    "qwen2.5:7b-instruct-q4_K_M",  # faster quantized version
     "phi3:mini"
 ]
 
@@ -41,7 +43,7 @@ LANGUAGE_SYSTEM_PROMPTS = {
     "Telugu": """మీరు తెలుగు ఉపాధ్యాయులు. తెలుగులో మాత్రమే సమాధానం ఇవ్వండి. సులభమైన భాష వాడండి."""
 }
 
-# Subject-specific depth instructions (this is the game-changer)
+# Depth instructions – includes strict math mode
 DEPTH_INSTRUCTIONS = {
     "Science": """
 For science questions always include:
@@ -53,12 +55,15 @@ For science questions always include:
 • Use precise scientific terminology but explain simply for school students
 """,
     "Mathematics": """
-For mathematics questions:
-• Always show every algebraic / logical step clearly
-• Use proper mathematical notation
-• Explain why each step is valid (property, theorem, rule)
-• For calculus: clearly state antiderivative, apply limits, mention Fundamental Theorem
-• For definite integrals: show F(b) - F(a) calculation
+STRICT MATH TUTOR MODE – ALWAYS follow this structure:
+
+1. Restate the problem clearly.
+2. Write the main formula / theorem used.
+3. Solve step-by-step with clear numbering (1., 2., 3.).
+4. Show every algebraic manipulation.
+5. Box the final answer using **\boxed{answer}** markdown.
+6. Re-check by substituting values back or differentiating if possible.
+7. Mention common mistakes to avoid (sign errors, calculation slips).
 """,
     "English": """
 For English grammar/vocabulary questions:
@@ -66,8 +71,7 @@ For English grammar/vocabulary questions:
 • Show the corrected sentence
 • Give 1–2 similar correct examples
 • If vocabulary, provide meaning + one natural sentence using it
-""",
-    # Add more subjects later if needed
+"""
 }
 
 # ==================== PAGE CONFIG ====================
@@ -98,16 +102,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Auto-focus input after answer
+st.markdown("""
+<script>
+    const input = window.parent.document.querySelector('input[data-testid="stChatInput"]');
+    if (input) input.focus();
+</script>
+""", unsafe_allow_html=True)
+
 # ==================== SESSION STATE ====================
 defaults = {
     "messages": [],
     "subject": "General",
     "language": "English",
-    "model": "llama3.1:8b",
+    "model": "qwen2.5:7b-instruct",  # default to stronger math/science model
     "vector_store": None,
     "total_inference_time": 0.0,
     "query_count": 0,
-    "language_change_counter": 0
+    "language_change_counter": 0,
+    "last_verified": None  # for async verification result
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -166,7 +179,7 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("🗑️ Clear Chat", use_container_width=True):
-        for k in ["messages", "total_inference_time", "query_count"]:
+        for k in ["messages", "total_inference_time", "query_count", "last_verified"]:
             st.session_state[k] = defaults[k]
         st.rerun()
 
@@ -177,7 +190,7 @@ if not st.session_state.messages:
     st.markdown("""
     <div style="text-align:center; padding:80px 20px;">
         <h1 style="color:#ed1c24; font-size:3.4rem; margin-bottom:0.3rem;">SkillSling AI</h1>
-        <p style="font-size:1.25rem; opacity:0.9; margin:0.6rem 0 1.4rem;">Your powerful offline tutor – tuned for high accuracy & depth</p>
+        <p style="font-size:1.25rem; opacity:0.9; margin:0.6rem 0 1.4rem;">Your powerful offline tutor – tuned for speed & depth</p>
         <div class="amd-badge" style="font-size:1.05rem; padding:10px 18px;">AMD SLINGSHOT 2026</div>
     </div>
     """, unsafe_allow_html=True)
@@ -206,12 +219,14 @@ if prompt := st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anyt
 
         system = base + f"\nCurrent subject focus: {st.session_state.subject}"
 
+        # Use only recent messages + system prompt (speed fix)
+        recent_messages = st.session_state.messages[-7:]
         msgs = [{"role": "system", "content": system}]
 
         if len(st.session_state.messages) <= 2:
             msgs.append({"role": "user", "content": f"From now on answer ONLY in {st.session_state.language} language."})
 
-        for m in st.session_state.messages:
+        for m in recent_messages:
             msgs.append({"role": m["role"], "content": m["content"]})
 
         start = time.time()
@@ -223,9 +238,10 @@ if prompt := st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anyt
                 stream=True,
                 options={
                     "temperature": 0.0,
+                    "top_p": 0.6,
                     "top_k": 30,
-                    "top_p": 0.65,
-                    "repeat_penalty": 1.25
+                    "repeat_penalty": 1.15,
+                    "num_predict": 512  # tight limit for speed
                 }
             )
 
@@ -234,8 +250,13 @@ if prompt := st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anyt
                     full_response += chunk['message']['content']
                     placeholder.markdown(full_response + "▌")
 
-            # Invisible correction step
-            check = f"""Strict academic checker.
+            # Show raw answer immediately (don't wait for verification)
+            placeholder.markdown(full_response)
+
+            # Run verification in background thread
+            def verify_in_background():
+                try:
+                    check_prompt = f"""Strict academic checker.
 Read the answer below.
 If ANY factual error, math mistake, incomplete step, wrong unit, or language issue → output the FULL corrected version.
 If correct and complete → output the text EXACTLY as is (copy-paste).
@@ -244,21 +265,58 @@ NEVER explain. NEVER say "corrected" or "this is right". Output ONLY the clean f
 Answer:
 {full_response}"""
 
-            verification = ollama.chat(
-                model=st.session_state.model,
-                messages=[{"role": "user", "content": check}],
-                options={"temperature": 0.0, "top_p": 0.6}
-            )
+                    verification = ollama.chat(
+                        model=st.session_state.model,
+                        messages=[{"role": "user", "content": check_prompt}],
+                        options={"temperature": 0.0, "top_p": 0.6, "num_predict": 512}
+                    )
+                    corrected = verification['message']['content'].strip()
 
-            final = verification['message']['content'].strip() or full_response
+                    final_text = corrected or full_response
+
+                    if st.session_state.subject == "Mathematics":
+                        math_check_prompt = f"""
+                        You are a strict JEE-level math examiner.
+                        Re-verify this entire solution step-by-step for:
+                        - Arithmetic mistakes
+                        - Sign errors
+                        - Algebra simplification issues
+                        - Final answer correctness
+                        If perfect → output EXACTLY the same text.
+                        If ANY mistake → output the fully corrected version only.
+                        Do NOT explain or add comments. Output ONLY the clean final solution.
+
+                        Solution to re-verify:
+                        {final_text}
+                        """
+                        math_verif = ollama.chat(
+                            model=st.session_state.model,
+                            messages=[{"role": "user", "content": math_check_prompt}],
+                            options={"temperature": 0.0, "num_predict": 512}
+                        )
+                        final_text = math_verif['message']['content'].strip() or final_text
+
+                    # Update session state with verified answer
+                    st.session_state.last_verified = final_text
+
+                    # Re-render the placeholder with verified version if different
+                    if final_text != full_response:
+                        placeholder.markdown(final_text)
+
+                except Exception as e:
+                    st.session_state.last_verified = full_response
+
+            # Start background verification
+            thread = threading.Thread(target=verify_in_background)
+            thread.start()
 
             latency = time.time() - start
-            placeholder.markdown(final)
             st.markdown(f'<div class="model-info">⚡ {latency:.1f}s • {st.session_state.model}</div>', unsafe_allow_html=True)
 
+            # Append initial response (will be updated later if verification changes it)
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": final,
+                "content": full_response,
                 "latency": latency
             })
             st.session_state.total_inference_time += latency
@@ -266,3 +324,11 @@ Answer:
 
         except Exception as e:
             placeholder.markdown(f"Error: {str(e)}\n\nIs Ollama running?")
+
+# Auto-focus input after every render
+st.markdown("""
+<script>
+    const input = window.parent.document.querySelector('input[data-testid="stChatInput"]');
+    if (input) input.focus();
+</script>
+""", unsafe_allow_html=True)
