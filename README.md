@@ -41,5 +41,5 @@ SkillSling AI is a high-performance, **100% offline** educational companion desi
 SkillSling focuses on the **AMD Slingshot** vision of empowering India through local AI. It demonstrates that with the right hardware (AMD) and optimized software, we can bring world-class AI tutoring to the most remote corners of the country, completely offline.
 
 ---
-**Made with ❤️ by Chetan Inaganti**  
+**Made with ❤️ by Banala Sreelaxmi**  
 [GitHub Repository](https://github.com/Chetan-code-lrca/skillsling-demo)
