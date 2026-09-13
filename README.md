@@ -50,11 +50,30 @@ On Windows PowerShell, activate the environment with:
 .venv\Scripts\Activate.ps1
 ```
 
+## Choosing a model
+
+The available models are selectable from the sidebar. A subject can also change the recommended model automatically, but the final model selection remains under your control.
+
+You do not need every model installed. Pull only the model you intend to use. For example:
+
+```bash
+ollama pull qwen2.5:7b-instruct
+```
+
+If Streamlit reports that Ollama is unavailable, start the Ollama service and make sure the selected model has already been pulled.
+
 ## PDF study material
 
-The sidebar accepts PDF notes. The app extracts the document text, splits it into chunks, creates Ollama embeddings, and stores the resulting vectors in a local FAISS index for the current session.
+The sidebar accepts PDF notes. When a PDF is uploaded, the app:
 
-Because the embeddings and model inference are local, the selected Ollama model must be available on the machine running the app.
+1. Extracts its text with `PyPDFLoader`.
+2. Splits the document into smaller chunks.
+3. Creates embeddings using the selected Ollama model.
+4. Stores those embeddings in a local FAISS vector store for the current Streamlit session.
+
+The PDF is used as local study material; the repository does not upload it to a hosted service.
+
+Because the embedding step also uses Ollama, the selected model must be available on the same machine running the app.
 
 ## Project dependencies
 
