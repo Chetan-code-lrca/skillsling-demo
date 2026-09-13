@@ -1,45 +1,77 @@
-﻿# 🚀 SkillSling AI: Offline-First Multilingual Tutor
-### **🏆 Built for AMD Slingshot 2026 | Theme: Education & Skilling**
+# SkillSling AI
 
-SkillSling AI is a high-performance, **100% offline** educational companion designed to democratize quality tutoring for students in Tier-2/3 cities across India. By leveraging local AMD hardware, SkillSling provides a private, zero-latency, and multilingual learning experience without requiring an internet connection.
+SkillSling is a Streamlit-based study assistant designed to run with local models through Ollama. It supports multilingual tutoring, subject-specific prompting, basic fact lookup for a small set of topics, and optional PDF-based question answering.
 
----
+## What it does
 
-## 🌟 Why SkillSling Stands Out?
+- Chats with a locally running Ollama model
+- Supports English, Hindi, Hinglish, Tamil, and Telugu prompts
+- Adjusts prompts for General, English, Social Science, Mathematics, and Science study
+- Uses simple built-in handling for a few historical facts
+- Can use SymPy for basic mathematics input such as integration
+- Accepts a PDF and builds a local FAISS vector store from its contents for retrieval
+- Keeps the chat session in Streamlit session state
 
-- **⚡ AMD Local Inference**: Optimized to run locally on AMD Ryzen™ and Radeon™ hardware using Ollama. No cloud latency, no subscription fees.
-- **🌍 Language Sovereignty**: Native support for **Hindi, Telugu, Tamil, and Hinglish**. The AI understands and responds in the student's primary language.
-- **🔒 Privacy First**: All data remains on the student's device. Ideal for school environments and areas with limited connectivity.
-- **📚 NCERT & Facts-Aligned**: Integrated with a verified local fact database to ensure historical and scientific accuracy (e.g., precise "Drain Theory" data).
-- **📝 Interactive Quiz Mode**: Generates customized tests based on the study session to reinforce learning.
+## Running it
 
----
+The application expects **Ollama** to be installed and running locally. The model selector in the app includes:
 
-## 🛠️ Quick Start (AMD Performance Mode)
+```text
+llama3.2:3b
+llama3.1:8b
+qwen2.5:7b-instruct
+qwen2.5:7b-instruct-q4_K_M
+phi3:mini
+```
 
-### **Prerequisites**
-1. **Ollama**: Install from [ollama.com](https://ollama.com)
-2. **AMD Hardware**: Ensure your AMD NPU/GPU drivers are up to date for maximum inference speed.
+Pull at least one model before starting the app. For example:
 
-### **Installation**
-1. **Pull the Model**:
-   ```bash
-   ollama pull llama3.2:3b
-   ```
-2. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Launch the Platform**:
-   ```bash
-   streamlit run app.py
-   ```
+```bash
+ollama pull llama3.2:3b
+```
 
----
+Create a Python virtual environment and install the project's dependencies:
 
-## 🎯 Competition Focus
-SkillSling focuses on the **AMD Slingshot** vision of empowering India through local AI. It demonstrates that with the right hardware (AMD) and optimized software, we can bring world-class AI tutoring to the most remote corners of the country, completely offline.
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
----
- 
-[GitHub Repository](https://github.com/Chetan-code-lrca/skillsling-demo)
+Then start Streamlit:
+
+```bash
+streamlit run app.py
+```
+
+On Windows PowerShell, activate the environment with:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+## PDF study material
+
+The sidebar accepts PDF notes. The app extracts the document text, splits it into chunks, creates Ollama embeddings, and stores the resulting vectors in a local FAISS index for the current session.
+
+Because the embeddings and model inference are local, the selected Ollama model must be available on the machine running the app.
+
+## Project dependencies
+
+The main libraries are:
+
+- Streamlit
+- Ollama Python client
+- LangChain community integrations
+- LangChain Ollama integration
+- FAISS
+- PyPDF
+- SymPy
+
+These are defined in `requirements.txt`.
+
+## Current limitations
+
+This is a local prototype rather than a hosted tutoring service. Model quality, response speed, and PDF retrieval quality depend on the Ollama model and the machine running it.
+
+The built-in fact database is intentionally small, and the mathematical parsing path is limited to the patterns the application currently recognizes.
