@@ -3,7 +3,6 @@ import ollama
 import time
 import tempfile
 import os
-import threading
 import sympy as sp
 from datetime import datetime
 from langchain_community.document_loaders import PyPDFLoader
@@ -126,7 +125,6 @@ defaults = {
     "total_inference_time": 0.0,
     "query_count": 0,
     "language_change_counter": 0,
-    "last_verified": None
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -284,26 +282,6 @@ if prompt := st.chat_input(PLACEHOLDERS.get(st.session_state.language, "Ask anyt
 
             placeholder.markdown(answer_content)
 
-            # Background verification
-            def background_verification():
-                try:
-                    check = f"""Strict checker. If any error, output corrected answer. If correct, output exactly the same. No explanation.
-
-Answer:
-{answer_content}"""
-                    verification = ollama.chat(
-                        model=st.session_state.model,
-                        messages=[{"role": "user", "content": check}],
-                        options={"temperature": 0.0, "top_p": 0.6, "num_predict": 1024}
-                    )
-                    corrected = verification['message']['content'].strip()
-                    if corrected != answer_content:
-                        st.session_state.last_verified = corrected
-                        placeholder.markdown(corrected)
-                except:
-                    pass
-
-            threading.Thread(target=background_verification, daemon=True).start()
 
             latency = time.time() - start
             st.markdown(f'<div class="model-info">⚡ {latency:.1f}s • {st.session_state.model}</div>', unsafe_allow_html=True)
