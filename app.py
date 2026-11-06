@@ -4,7 +4,7 @@ import time
 import hashlib
 import sympy as sp
 from datetime import datetime
-from pdf_ingestion import MAX_PDF_UPLOAD_BYTES, extract_pdf_documents
+from pdf_ingestion import extract_pdf_documents
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
