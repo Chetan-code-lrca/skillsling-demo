@@ -5,4 +5,3 @@ langchain-text-splitters
 ollama
 pypdf>=4.0,<7
 streamlit
-pypdf>=4.0,<7
