@@ -31,3 +31,6 @@ jobs:
 
       - name: Check Python syntax
         run: python -m py_compile app.py ui.py web_search.py current_facts.py
+
+      - name: Run PDF ingestion regression tests
+        run: python -m unittest discover -s tests -v
