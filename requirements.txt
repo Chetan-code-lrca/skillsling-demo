@@ -1,8 +1,8 @@
-streamlit
-ollama
+faiss-cpu
 langchain-community
 langchain-ollama
 langchain-text-splitters
-faiss-cpu
+ollama
 pypdf
 pypdf>=4.0,<7
+streamlit
