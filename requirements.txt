@@ -5,3 +5,4 @@ langchain-ollama
 langchain-text-splitters
 faiss-cpu
 pypdf
+pypdf>=4.0,<7
