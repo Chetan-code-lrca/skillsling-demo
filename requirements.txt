@@ -3,6 +3,6 @@ langchain-community
 langchain-ollama
 langchain-text-splitters
 ollama
-pypdf
 pypdf>=4.0,<7
 streamlit
+pypdf>=4.0,<7
