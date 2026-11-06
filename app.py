@@ -3,7 +3,6 @@ import ollama
 import time
 import hashlib
 import sympy as sp
-from datetime import datetime
 from pdf_ingestion import extract_pdf_documents
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
@@ -126,7 +125,6 @@ defaults = {
     "total_inference_time": 0.0,
     "query_count": 0,
     "language_change_counter": 0,
-    "last_verified": None
 }
 for k, v in defaults.items():
     if k not in st.session_state:
