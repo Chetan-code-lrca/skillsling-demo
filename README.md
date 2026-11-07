@@ -28,6 +28,7 @@ Pull at least one model before starting the app. For example:
 
 ```bash
 ollama pull llama3.2:3b
+ollama pull nomic-embed-text
 ```
 
 Create a Python virtual environment and install the project's dependencies:
@@ -74,7 +75,7 @@ The sidebar accepts PDF notes. When a PDF is uploaded, the app:
 
 The PDF bytes are parsed in the Streamlit process. The app does not send the file or extracted text to a hosted document-processing service. The vector index exists only in the active Streamlit session and is not saved as a persistent user library.
 
-Because both embeddings and chat use Ollama, the selected model must be available to the Ollama server running on the same machine. A different model selection rebuilds the PDF index; removing the uploaded file clears the active index.
+PDF embeddings use the dedicated `nomic-embed-text` model, separate from the chat model. Pull both the chat model you select and `nomic-embed-text` on the Ollama server. Changing the chat model does not require rebuilding the PDF index; changing the uploaded PDF does. Removing the uploaded file clears the active index.
 
 ## PDF handling limits
 
