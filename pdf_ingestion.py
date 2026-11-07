@@ -8,6 +8,7 @@ from pathlib import Path
 from langchain_core.documents import Document
 from pypdf import PdfReader
 
+PDF_EMBEDDING_MODEL = "nomic-embed-text"
 MAX_PDF_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 100
 MAX_EXTRACTED_CHARS = 50_000
