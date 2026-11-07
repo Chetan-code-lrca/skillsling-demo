@@ -73,7 +73,7 @@ The sidebar accepts PDF notes. When a PDF is uploaded, the app:
 4. Splits extracted page text into chunks and builds a local FAISS vector index.
 5. Retrieves up to four relevant excerpts for each chat question and supplies those excerpts to the local Ollama model as reference context.
 
-The PDF bytes are parsed in the Streamlit process. The app does not send the file or extracted text to a hosted document-processing service. The vector index exists only in the active Streamlit session and is not saved as a persistent user library.
+The PDF bytes are parsed in the Streamlit process. The app does not send the file to a hosted document-processing service, but extracted text is sent to the configured Ollama server for embeddings and chat context. By default the Ollama client uses a local server; if `OLLAMA_HOST` points to another machine, the text is transmitted to that endpoint. Use only an Ollama server you control and trust. The vector index exists only in the active Streamlit session and is not saved as a persistent user library.
 
 PDF embeddings use the dedicated `nomic-embed-text` model, separate from the chat model. Pull both the chat model you select and `nomic-embed-text` on the Ollama server. Changing the chat model does not require rebuilding the PDF index; changing the uploaded PDF does. Removing the uploaded file clears the active index.
 
