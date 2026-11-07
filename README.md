@@ -9,7 +9,7 @@ SkillSling is a Streamlit-based study assistant designed to run with local model
 - Adjusts prompts for General, English, Social Science, Mathematics, and Science study
 - Uses simple built-in handling for a few historical facts
 - Can use SymPy for basic mathematics input such as integration
-- Accepts a PDF and builds a local FAISS vector store from its contents for retrieval
+- Accepts a bounded PDF upload, extracts selectable text locally, and retrieves relevant excerpts from a local FAISS index when you ask questions
 - Keeps the chat session in Streamlit session state
 
 ## Running it
@@ -28,6 +28,7 @@ Pull at least one model before starting the app. For example:
 
 ```bash
 ollama pull llama3.2:3b
+ollama pull nomic-embed-text
 ```
 
 Create a Python virtual environment and install the project's dependencies:
@@ -66,14 +67,27 @@ If Streamlit reports that Ollama is unavailable, start the Ollama service and ma
 
 The sidebar accepts PDF notes. When a PDF is uploaded, the app:
 
-1. Extracts its text with `PyPDFLoader`.
-2. Splits the document into smaller chunks.
-3. Creates embeddings using the selected Ollama model.
-4. Stores those embeddings in a local FAISS vector store for the current Streamlit session.
+1. Checks that it is a PDF and enforces a 10 MiB upload limit.
+2. Rejects password-protected files and PDFs above 100 pages.
+3. Extracts up to 50,000 characters of selectable text. Scanned/image-only PDFs are not OCR-processed.
+4. Splits extracted page text into chunks and builds a local FAISS vector index.
+5. Retrieves up to four relevant excerpts for each chat question and supplies those excerpts to the local Ollama model as reference context.
 
-The PDF is used as local study material; the repository does not upload it to a hosted service.
+The PDF bytes are parsed in the Streamlit process. The app does not send the file to a hosted document-processing service, but extracted text is sent to the configured Ollama server for embeddings and chat context. By default the Ollama client uses a local server; if `OLLAMA_HOST` points to another machine, the text is transmitted to that endpoint. Use only an Ollama server you control and trust. The vector index exists only in the active Streamlit session and is not saved as a persistent user library.
 
-Because the embedding step also uses Ollama, the selected model must be available on the same machine running the app.
+PDF embeddings use the dedicated `nomic-embed-text` model, separate from the chat model. Pull both the chat model you select and `nomic-embed-text` on the Ollama server. Changing the chat model does not require rebuilding the PDF index; changing the uploaded PDF does. Removing the uploaded file clears the active index.
+
+## PDF handling limits
+
+The Streamlit upload limit is configured in `.streamlit/config.toml`. The Python extractor independently checks the byte size and PDF structure before parsing. These limits help bound memory and processing work, but do not provide malware scanning or safe handling guarantees for untrusted PDFs. Use only files you are permitted to process, and keep the app bound to a trusted local environment.
+
+Run the PDF ingestion tests with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+GitHub Actions runs these tests alongside the Python syntax check.
 
 ## Project dependencies
 
