@@ -3,7 +3,7 @@ import ollama
 import time
 import hashlib
 import sympy as sp
-from pdf_ingestion import extract_pdf_documents
+from pdf_ingestion import PDF_EMBEDDING_MODEL, extract_pdf_documents
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -174,7 +174,7 @@ with st.sidebar:
     )
     if pdf:
         pdf_bytes = pdf.getvalue()
-        pdf_index_key = hashlib.sha256(pdf_bytes).hexdigest() + ":" + st.session_state.model
+        pdf_index_key = hashlib.sha256(pdf_bytes).hexdigest() + ":" + PDF_EMBEDDING_MODEL
         if st.session_state.pdf_index_key != pdf_index_key:
             # Do not keep answering from an older file if a replacement fails to index.
             st.session_state.vector_store = None
@@ -190,7 +190,7 @@ with st.sidebar:
                         raise ValueError("No usable text chunks were extracted from the PDF.")
                     vector_store = FAISS.from_documents(
                         chunks,
-                        OllamaEmbeddings(model=st.session_state.model),
+                        OllamaEmbeddings(model=PDF_EMBEDDING_MODEL),
                     )
                 except ValueError as error:
                     st.error(f"PDF not indexed: {error}")
@@ -205,7 +205,7 @@ with st.sidebar:
                     st.session_state.pdf_name = pdf.name
                     st.success(f"Indexed {len(docs)} text pages from {pdf.name}.")
         else:
-            st.caption(f"Using indexed notes: {st.session_state.pdf_name}")
+            st.caption(f"Using indexed notes: {st.session_state.pdf_name} · embeddings: {PDF_EMBEDDING_MODEL}")
     elif st.session_state.pdf_index_key is not None:
         st.session_state.vector_store = None
         st.session_state.pdf_index_key = None
