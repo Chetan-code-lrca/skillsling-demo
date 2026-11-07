@@ -4,7 +4,7 @@ import unittest
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
-from pdf_ingestion import extract_pdf_documents
+from pdf_ingestion import PDF_EMBEDDING_MODEL, extract_pdf_documents
 
 
 def make_pdf(page_count=1, text="Important study note"):
@@ -35,6 +35,9 @@ def make_pdf(page_count=1, text="Important study note"):
 
 
 class PdfIngestionTests(unittest.TestCase):
+    def test_uses_a_dedicated_embedding_model_separate_from_chat_models(self):
+        self.assertEqual(PDF_EMBEDDING_MODEL, "nomic-embed-text")
+
     def test_extracts_text_with_source_and_page_metadata(self):
         documents = extract_pdf_documents(make_pdf(), "lecture-notes.pdf")
 
