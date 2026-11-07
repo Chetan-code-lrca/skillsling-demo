@@ -174,7 +174,7 @@ with st.sidebar:
     )
     if pdf:
         pdf_bytes = pdf.getvalue()
-        pdf_index_key = hashlib.sha256(pdf_bytes).hexdigest() + ":" + PDF_EMBEDDING_MODEL
+        pdf_index_key = hashlib.sha256(pdf_bytes).hexdigest() + ":" + pdf.name + ":" + PDF_EMBEDDING_MODEL
         if st.session_state.pdf_index_key != pdf_index_key:
             # Do not keep answering from an older file if a replacement fails to index.
             st.session_state.vector_store = None
