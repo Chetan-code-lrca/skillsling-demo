@@ -196,8 +196,8 @@ with st.sidebar:
                     st.error(f"PDF not indexed: {error}")
                 except Exception:
                     st.error(
-                        "PDF indexing failed. Confirm Ollama is running and the selected "
-                        "model is available for embeddings, then try again."
+                        f"PDF indexing failed. Confirm Ollama is running and that "
+                        f"`ollama pull {PDF_EMBEDDING_MODEL}` has completed, then try again."
                     )
                 else:
                     st.session_state.vector_store = vector_store
